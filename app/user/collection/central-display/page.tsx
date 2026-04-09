@@ -598,7 +598,7 @@ export default function CentralDisplayPage() {
                   <img 
                     src={note.image} 
                     alt={`${note.noteType} Birr`}
-                    className="w-12 h-auto rounded-lg shadow-2xl border-2 border-yellow-400"
+                    className="w-24 h-auto rounded-lg shadow-2xl border-2 border-yellow-400"
                   />
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap shadow-lg">
                     +{note.noteType}
