@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useAuth } from '@/lib/auth';
 import { webSocketService } from '@/app/utils/websocket';
-import { NOTE_IMAGES } from  '@/app/utils/constants';
 
 interface Batch {
   _id: string;
@@ -25,6 +24,7 @@ interface FlyingNote {
   noteType: number;
   targetBatchId: string;
   targetBox: string;
+  image: string;
   startX: number;
   startY: number;
 }
@@ -38,6 +38,7 @@ export default function CentralDisplayPage() {
   const [totalAllBatches, setTotalAllBatches] = useState(0);
   const [selectedBatchForDetail, setSelectedBatchForDetail] = useState<Batch | null>(null);
   const [showLiveFeed, setShowLiveFeed] = useState(true);
+  const [lastReorderTime, setLastReorderTime] = useState<Date>(new Date());
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,6 +76,7 @@ export default function CentralDisplayPage() {
       const { transaction, allBatchTotals } = data;
       console.log('Money collected:', transaction);
       
+      // Update last donation time for the batch
       const updatedBatches = allBatchTotals.map((batch: Batch) => {
         if (batch._id === transaction.batchId) {
           return { ...batch, lastDonationTime: new Date() };
@@ -82,6 +84,7 @@ export default function CentralDisplayPage() {
         return batch;
       });
       
+      // Sort batches by last donation time (newest first)
       const sortedBatches = [...updatedBatches].sort((a, b) => {
         const dateA = new Date(a.lastDonationTime || 0);
         const dateB = new Date(b.lastDonationTime || 0);
@@ -89,18 +92,20 @@ export default function CentralDisplayPage() {
       });
       
       setBatches(sortedBatches);
+      setLastReorderTime(new Date());
       
       const grandTotal = updatedBatches.reduce((sum: number, batch: Batch) => sum + batch.totalCollected, 0);
       setTotalAllBatches(grandTotal);
       
       setRecentTransactions(prev => [transaction, ...prev].slice(0, 30));
       
-      // Create flying notes animation - NO image field anymore
+      // Create flying notes animation
       const notes = transaction.breakdown.map((note: any, index: number) => ({
         id: `${transaction.sequenceId}-${index}`,
         noteType: note.noteType,
         targetBatchId: transaction.batchId,
         targetBox: note.targetBox,
+        image: note.image,
         startX: Math.random() * 80 + 10,
         startY: -10
       }));
@@ -117,6 +122,7 @@ export default function CentralDisplayPage() {
 
     const handleAllBatchTotals = (data: Batch[]) => {
       console.log('All batch totals:', data);
+      // Sort batches by last donation time (newest first)
       const sortedBatches = [...data].sort((a, b) => {
         const dateA = new Date(a.lastDonationTime || 0);
         const dateB = new Date(b.lastDonationTime || 0);
@@ -186,6 +192,7 @@ export default function CentralDisplayPage() {
 
   const boxPositions = getBoxPositions(130);
 
+  // Helper to format time difference
   const getTimeAgo = (date: Date) => {
     if (!date) return '';
     const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
@@ -233,7 +240,7 @@ export default function CentralDisplayPage() {
 
       {/* Main Content - Flex Layout */}
       <div className="flex flex-col lg:flex-row gap-6 p-6">
-        {/* Batches Grid */}
+        {/* Batches Grid - Dynamic ordering based on recent donations */}
         <div className={`flex-1 transition-all duration-300 ${showLiveFeed ? 'lg:mr-0' : ''}`}>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-[1600px] mx-auto">
             <AnimatePresence mode="popLayout">
@@ -252,7 +259,7 @@ export default function CentralDisplayPage() {
                   whileHover={{ scale: 1.02 }}
                   className="relative bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-3xl p-4 border border-yellow-500/20 shadow-2xl hover:shadow-yellow-500/10 transition-all duration-300"
                 >
-                  {/* Batch Header */}
+                  {/* Batch Header - Center Top */}
                   <div className="text-center mb-6 relative">
                     <motion.div
                       whileHover={{ scale: 1.05 }}
@@ -268,6 +275,7 @@ export default function CentralDisplayPage() {
                       <p className="text-white font-bold text-xs">{batch.totalCollected.toFixed(0)} Br</p>
                     </div>
                     
+                    {/* Last Donation Time Badge */}
                     {batch.lastDonationTime && (
                       <motion.div 
                         initial={{ scale: 0 }}
@@ -278,6 +286,7 @@ export default function CentralDisplayPage() {
                       </motion.div>
                     )}
                     
+                    {/* Hot indicator for recent donation */}
                     {batch.lastDonationTime && new Date().getTime() - new Date(batch.lastDonationTime).getTime() < 5000 && (
                       <motion.div
                         initial={{ scale: 0, opacity: 0 }}
@@ -294,8 +303,10 @@ export default function CentralDisplayPage() {
 
                   {/* Circular Boxes Container */}
                   <div className="relative h-[280px] flex items-center justify-center">
+                    {/* Center glow effect */}
                     <div className="absolute w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl animate-pulse" />
                     
+                    {/* Center Batch Icon */}
                     <div className="absolute z-10 w-20 h-20 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full flex items-center justify-center shadow-2xl border-2 border-yellow-500/50">
                       <div className="text-center">
                         <div className="text-2xl">💰</div>
@@ -304,6 +315,7 @@ export default function CentralDisplayPage() {
                       </div>
                     </div>
 
+                    {/* 5 Boxes in Circular Layout */}
                     {Object.entries(batch.boxes).map(([boxKey, boxData], boxIndex) => {
                       const position = boxPositions[boxIndex];
                       return (
@@ -365,6 +377,7 @@ export default function CentralDisplayPage() {
                     })}
                   </div>
 
+                  {/* Rank Badges based on current order */}
                   {batchIndex === 0 && (
                     <motion.div 
                       initial={{ scale: 0 }}
@@ -393,6 +406,7 @@ export default function CentralDisplayPage() {
                     </motion.div>
                   )}
                   
+                  {/* New donation ripple effect */}
                   {batch.lastDonationTime && new Date().getTime() - new Date(batch.lastDonationTime).getTime() < 1000 && (
                     <motion.div
                       initial={{ scale: 0.8, opacity: 0.5 }}
@@ -415,7 +429,7 @@ export default function CentralDisplayPage() {
           )}
         </div>
 
-        {/* Recent Transactions Sidebar */}
+        {/* Recent Transactions Sidebar - Also ordered by most recent */}
         {showLiveFeed && (
           <motion.div
             initial={{ opacity: 0, x: 50 }}
@@ -547,7 +561,7 @@ export default function CentralDisplayPage() {
         )}
       </AnimatePresence>
 
-      {/* Flying Notes Animation Layer - USING FRONTEND IMAGE MAPPING */}
+      {/* Flying Notes Animation Layer */}
       <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
         <AnimatePresence>
           {flyingNotes.map((note) => {
@@ -581,15 +595,10 @@ export default function CentralDisplayPage() {
                 style={{ left: 0, top: 0 }}
               >
                 <div className="relative">
-                  {/* USE FRONTEND IMAGE MAPPING HERE */}
                   <img 
-                    src={NOTE_IMAGES[note.noteType]}
+                    src={note.image} 
                     alt={`${note.noteType} Birr`}
                     className="w-12 h-auto rounded-lg shadow-2xl border-2 border-yellow-400"
-                    onError={(e) => {
-                      console.error(`Failed to load image for ${note.noteType} Birr`);
-                      e.currentTarget.src = '/notes/fallback.jpeg';
-                    }}
                   />
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap shadow-lg">
                     +{note.noteType}

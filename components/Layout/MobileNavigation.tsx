@@ -16,7 +16,7 @@ const navigationItems = [
   },
   {
     name: 'Play',
-    href: '/user/lobby',
+    href: '/user/collection',
     icon: Play
   },
   {
@@ -31,7 +31,7 @@ const navigationItems = [
   },
   {
     name: 'Profile',
-    href: '/user/collection',
+    href: '/user/profile',
     icon: User
   }
 ];

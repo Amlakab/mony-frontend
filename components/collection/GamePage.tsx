@@ -219,7 +219,7 @@ export const GamePage = ({ webSocketService, language, user }: GamePageProps) =>
                 <p className="text-gray-600 mt-1">Amount: <strong className="text-green-600">{selectedAmount} Birr</strong></p>
               </div>
               
-              <label className="block text-gray-700 mb-2">
+              {/* <label className="block text-gray-700 mb-2">
                 Donor Name <span className="text-gray-400 text-sm">(Optional)</span>
               </label>
               <input
@@ -230,7 +230,7 @@ export const GamePage = ({ webSocketService, language, user }: GamePageProps) =>
                 className="w-full border rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 autoFocus
               />
-              
+               */}
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDonorModal(false)}
