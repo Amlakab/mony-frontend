@@ -221,7 +221,7 @@ export default function CentralDisplayPage() {
           <div className="flex justify-between items-center flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent flex items-center gap-2">
-                <span>🎯</span> Live Money Collection
+                <span>🎯</span> Tepi Gibi Gubaye Won the Bid
               </h1>
               <button
                 onClick={() => setShowLiveFeed(!showLiveFeed)}
@@ -598,7 +598,7 @@ export default function CentralDisplayPage() {
                   <img 
                     src={note.image} 
                     alt={`${note.noteType} Birr`}
-                    className="w-24 h-auto rounded-lg shadow-2xl border-2 border-yellow-400"
+                    className="w-48 h-auto rounded-lg shadow-2xl border-2 border-yellow-400"
                   />
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap shadow-lg">
                     +{note.noteType}
