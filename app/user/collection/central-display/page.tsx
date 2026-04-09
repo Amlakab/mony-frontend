@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useAuth } from '@/lib/auth';
 import { webSocketService } from '@/app/utils/websocket';
 
@@ -38,6 +38,7 @@ export default function CentralDisplayPage() {
   const [totalAllBatches, setTotalAllBatches] = useState(0);
   const [selectedBatchForDetail, setSelectedBatchForDetail] = useState<Batch | null>(null);
   const [showLiveFeed, setShowLiveFeed] = useState(true);
+  const [lastReorderTime, setLastReorderTime] = useState<Date>(new Date());
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,13 +76,30 @@ export default function CentralDisplayPage() {
       const { transaction, allBatchTotals } = data;
       console.log('Money collected:', transaction);
       
-      setBatches(allBatchTotals);
+      // Update last donation time for the batch
+      const updatedBatches = allBatchTotals.map((batch: Batch) => {
+        if (batch._id === transaction.batchId) {
+          return { ...batch, lastDonationTime: new Date() };
+        }
+        return batch;
+      });
       
-      const grandTotal = allBatchTotals.reduce((sum: number, batch: Batch) => sum + batch.totalCollected, 0);
+      // Sort batches by last donation time (newest first)
+      const sortedBatches = [...updatedBatches].sort((a, b) => {
+        const dateA = new Date(a.lastDonationTime || 0);
+        const dateB = new Date(b.lastDonationTime || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      
+      setBatches(sortedBatches);
+      setLastReorderTime(new Date());
+      
+      const grandTotal = updatedBatches.reduce((sum: number, batch: Batch) => sum + batch.totalCollected, 0);
       setTotalAllBatches(grandTotal);
       
       setRecentTransactions(prev => [transaction, ...prev].slice(0, 30));
       
+      // Create flying notes animation
       const notes = transaction.breakdown.map((note: any, index: number) => ({
         id: `${transaction.sequenceId}-${index}`,
         noteType: note.noteType,
@@ -104,6 +122,7 @@ export default function CentralDisplayPage() {
 
     const handleAllBatchTotals = (data: Batch[]) => {
       console.log('All batch totals:', data);
+      // Sort batches by last donation time (newest first)
       const sortedBatches = [...data].sort((a, b) => {
         const dateA = new Date(a.lastDonationTime || 0);
         const dateB = new Date(b.lastDonationTime || 0);
@@ -173,6 +192,16 @@ export default function CentralDisplayPage() {
 
   const boxPositions = getBoxPositions(130);
 
+  // Helper to format time difference
+  const getTimeAgo = (date: Date) => {
+    if (!date) return '';
+    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  };
+
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
@@ -194,7 +223,6 @@ export default function CentralDisplayPage() {
               <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent flex items-center gap-2">
                 <span>🎯</span> Live Money Collection
               </h1>
-              {/* Toggle Live Feed Button */}
               <button
                 onClick={() => setShowLiveFeed(!showLiveFeed)}
                 className="md:hidden bg-yellow-500/20 px-3 py-1 rounded-full text-xs text-yellow-400"
@@ -210,137 +238,186 @@ export default function CentralDisplayPage() {
         </div>
       </div>
 
-      {/* Main Content - Flex Layout to prevent overlap */}
+      {/* Main Content - Flex Layout */}
       <div className="flex flex-col lg:flex-row gap-6 p-6">
-        {/* Batches Grid - Takes remaining space */}
+        {/* Batches Grid - Dynamic ordering based on recent donations */}
         <div className={`flex-1 transition-all duration-300 ${showLiveFeed ? 'lg:mr-0' : ''}`}>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-[1600px] mx-auto">
-            {batches.map((batch, batchIndex) => (
-              <motion.div
-                key={batch._id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: batchIndex * 0.1 }}
-                whileHover={{ scale: 1.02 }}
-                className="relative bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-3xl p-4 border border-yellow-500/20 shadow-2xl hover:shadow-yellow-500/10 transition-all duration-300"
-              >
-                {/* Batch Header - Center Top */}
-                <div className="text-center mb-6 relative">
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    className="inline-block cursor-pointer"
-                    onClick={() => setSelectedBatchForDetail(batch)}
-                  >
-                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-3 w-20 h-20 mx-auto flex items-center justify-center shadow-2xl border-2 border-yellow-400">
-                      <span className="text-3xl">🏫</span>
+            <AnimatePresence mode="popLayout">
+              {batches.map((batch, batchIndex) => (
+                <motion.div
+                  key={batch._id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9, y: 50 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -50 }}
+                  transition={{ 
+                    duration: 0.5,
+                    delay: batchIndex * 0.05,
+                    layout: { duration: 0.3 }
+                  }}
+                  whileHover={{ scale: 1.02 }}
+                  className="relative bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-3xl p-4 border border-yellow-500/20 shadow-2xl hover:shadow-yellow-500/10 transition-all duration-300"
+                >
+                  {/* Batch Header - Center Top */}
+                  <div className="text-center mb-6 relative">
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      className="inline-block cursor-pointer"
+                      onClick={() => setSelectedBatchForDetail(batch)}
+                    >
+                      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-3 w-20 h-20 mx-auto flex items-center justify-center shadow-2xl border-2 border-yellow-400">
+                        <span className="text-3xl">🏫</span>
+                      </div>
+                    </motion.div>
+                    <h2 className="text-lg font-bold text-yellow-400 mt-2">{batch.name}</h2>
+                    <div className="absolute -top-2 -right-2 bg-purple-600 rounded-full px-2 py-0.5 shadow-lg">
+                      <p className="text-white font-bold text-xs">{batch.totalCollected.toFixed(0)} Br</p>
                     </div>
-                  </motion.div>
-                  <h2 className="text-lg font-bold text-yellow-400 mt-2">{batch.name}</h2>
-                  <div className="absolute -top-2 -right-2 bg-purple-600 rounded-full px-2 py-0.5 shadow-lg">
-                    <p className="text-white font-bold text-xs">{batch.totalCollected.toFixed(0)} Br</p>
-                  </div>
-                  
-                  {batch.lastDonationTime && (
-                    <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-green-500/80 rounded-full px-2 py-0.5 text-[10px] text-white whitespace-nowrap">
-                      🕐 Just now
-                    </div>
-                  )}
-                </div>
-
-                {/* Circular Boxes Container */}
-                <div className="relative h-[280px] flex items-center justify-center">
-                  {/* Center glow effect */}
-                  <div className="absolute w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl animate-pulse" />
-                  
-                  {/* Center Batch Icon */}
-                  <div className="absolute z-10 w-20 h-20 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full flex items-center justify-center shadow-2xl border-2 border-yellow-500/50">
-                    <div className="text-center">
-                      <div className="text-2xl">💰</div>
-                      <div className="text-[10px] text-gray-400 mt-0.5">Total</div>
-                      <div className="text-xs font-bold text-yellow-400">{batch.totalCollected.toFixed(0)}</div>
-                    </div>
-                  </div>
-
-                  {/* 5 Boxes in Circular Layout */}
-                  {Object.entries(batch.boxes).map(([boxKey, boxData], boxIndex) => {
-                    const position = boxPositions[boxIndex];
-                    return (
-                      <motion.div
-                        key={boxKey}
-                        initial={{ opacity: 0, scale: 0 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: batchIndex * 0.1 + boxIndex * 0.05 }}
-                        whileHover={{ scale: 1.1, zIndex: 20 }}
-                        className="absolute cursor-pointer"
-                        style={{
-                          left: `calc(50% + ${position.x}px)`,
-                          top: `calc(50% + ${position.y}px)`,
-                          transform: 'translate(-50%, -50%)'
-                        }}
-                        id={`box-${batch._id}-${boxKey}`}
+                    
+                    {/* Last Donation Time Badge */}
+                    {batch.lastDonationTime && (
+                      <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-green-500/90 rounded-full px-2 py-0.5 text-[10px] text-white whitespace-nowrap shadow-lg z-10"
                       >
-                        <div className="relative group">
-                          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-16 h-2 bg-black/30 rounded-full blur-sm" />
-                          
-                          <div className={`
-                            absolute -top-1.5 left-0 w-full h-3 
-                            bg-gradient-to-r ${getBoxGradient(boxKey)} 
-                            rounded-t-lg transform rotate-x-12 origin-bottom
-                            shadow-lg
-                          `} />
-                          
-                          <div className={`
-                            w-16 h-16 
-                            bg-gradient-to-br ${getBoxGradient(boxKey)} 
-                            rounded-xl shadow-2xl 
-                            flex flex-col items-center justify-center
-                            border border-yellow-400/30
-                            relative overflow-hidden
-                            transition-all duration-300
-                            group-hover:shadow-yellow-500/50
-                          `}>
-                            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-800 rounded-full opacity-50" />
-                            
-                            <div className="text-xl mb-0.5 drop-shadow-lg">
-                              {getBoxIcon(boxKey)}
-                            </div>
-                            
-                            <div className="bg-black/50 rounded-full px-1.5 py-0">
-                              <p className="text-white font-bold text-[10px]">{getBoxLabel(boxKey)}</p>
-                            </div>
-                            
-                            <p className="text-xs font-bold text-white drop-shadow-lg">
-                              {boxData.total.toFixed(0)}
-                            </p>
-                            
-                            <div className="absolute -top-1.5 -right-1.5 bg-yellow-500 rounded-full w-4 h-4 flex items-center justify-center shadow-lg">
-                              <span className="text-[8px] font-bold text-gray-900">{boxData.noteCount}</span>
-                            </div>
-                          </div>
+                        🕐 {getTimeAgo(batch.lastDonationTime)}
+                      </motion.div>
+                    )}
+                    
+                    {/* Hot indicator for recent donation */}
+                    {batch.lastDonationTime && new Date().getTime() - new Date(batch.lastDonationTime).getTime() < 5000 && (
+                      <motion.div
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="absolute -top-1 -right-1"
+                      >
+                        <div className="relative">
+                          <span className="text-xl animate-pulse">🔥</span>
+                          <div className="absolute inset-0 animate-ping rounded-full bg-red-500 opacity-75"></div>
                         </div>
                       </motion.div>
-                    );
-                  })}
-                </div>
+                    )}
+                  </div>
 
-                {/* Rank Badges */}
-                {batchIndex === 0 && (
-                  <div className="absolute -top-2 -left-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full w-8 h-8 flex items-center justify-center shadow-xl animate-pulse">
-                    <span className="text-white font-bold text-sm">👑</span>
+                  {/* Circular Boxes Container */}
+                  <div className="relative h-[280px] flex items-center justify-center">
+                    {/* Center glow effect */}
+                    <div className="absolute w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl animate-pulse" />
+                    
+                    {/* Center Batch Icon */}
+                    <div className="absolute z-10 w-20 h-20 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full flex items-center justify-center shadow-2xl border-2 border-yellow-500/50">
+                      <div className="text-center">
+                        <div className="text-2xl">💰</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">Total</div>
+                        <div className="text-xs font-bold text-yellow-400">{batch.totalCollected.toFixed(0)}</div>
+                      </div>
+                    </div>
+
+                    {/* 5 Boxes in Circular Layout */}
+                    {Object.entries(batch.boxes).map(([boxKey, boxData], boxIndex) => {
+                      const position = boxPositions[boxIndex];
+                      return (
+                        <motion.div
+                          key={boxKey}
+                          initial={{ opacity: 0, scale: 0 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: batchIndex * 0.1 + boxIndex * 0.05 }}
+                          whileHover={{ scale: 1.1, zIndex: 20 }}
+                          className="absolute cursor-pointer"
+                          style={{
+                            left: `calc(50% + ${position.x}px)`,
+                            top: `calc(50% + ${position.y}px)`,
+                            transform: 'translate(-50%, -50%)'
+                          }}
+                          id={`box-${batch._id}-${boxKey}`}
+                        >
+                          <div className="relative group">
+                            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-16 h-2 bg-black/30 rounded-full blur-sm" />
+                            
+                            <div className={`
+                              absolute -top-1.5 left-0 w-full h-3 
+                              bg-gradient-to-r ${getBoxGradient(boxKey)} 
+                              rounded-t-lg transform rotate-x-12 origin-bottom
+                              shadow-lg
+                            `} />
+                            
+                            <div className={`
+                              w-16 h-16 
+                              bg-gradient-to-br ${getBoxGradient(boxKey)} 
+                              rounded-xl shadow-2xl 
+                              flex flex-col items-center justify-center
+                              border border-yellow-400/30
+                              relative overflow-hidden
+                              transition-all duration-300
+                              group-hover:shadow-yellow-500/50
+                            `}>
+                              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-6 h-1 bg-gray-800 rounded-full opacity-50" />
+                              
+                              <div className="text-xl mb-0.5 drop-shadow-lg">
+                                {getBoxIcon(boxKey)}
+                              </div>
+                              
+                              <div className="bg-black/50 rounded-full px-1.5 py-0">
+                                <p className="text-white font-bold text-[10px]">{getBoxLabel(boxKey)}</p>
+                              </div>
+                              
+                              <p className="text-xs font-bold text-white drop-shadow-lg">
+                                {boxData.total.toFixed(0)}
+                              </p>
+                              
+                              <div className="absolute -top-1.5 -right-1.5 bg-yellow-500 rounded-full w-4 h-4 flex items-center justify-center shadow-lg">
+                                <span className="text-[8px] font-bold text-gray-900">{boxData.noteCount}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                   </div>
-                )}
-                {batchIndex === 1 && (
-                  <div className="absolute -top-2 -left-2 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full w-7 h-7 flex items-center justify-center shadow-xl">
-                    <span className="text-white font-bold text-xs">2</span>
-                  </div>
-                )}
-                {batchIndex === 2 && (
-                  <div className="absolute -top-2 -left-2 bg-gradient-to-r from-amber-600 to-amber-700 rounded-full w-7 h-7 flex items-center justify-center shadow-xl">
-                    <span className="text-white font-bold text-xs">3</span>
-                  </div>
-                )}
-              </motion.div>
-            ))}
+
+                  {/* Rank Badges based on current order */}
+                  {batchIndex === 0 && (
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-2 -left-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full w-8 h-8 flex items-center justify-center shadow-xl"
+                    >
+                      <span className="text-white font-bold text-sm">👑</span>
+                    </motion.div>
+                  )}
+                  {batchIndex === 1 && (
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-2 -left-2 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full w-7 h-7 flex items-center justify-center shadow-xl"
+                    >
+                      <span className="text-white font-bold text-xs">2</span>
+                    </motion.div>
+                  )}
+                  {batchIndex === 2 && (
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-2 -left-2 bg-gradient-to-r from-amber-600 to-amber-700 rounded-full w-7 h-7 flex items-center justify-center shadow-xl"
+                    >
+                      <span className="text-white font-bold text-xs">3</span>
+                    </motion.div>
+                  )}
+                  
+                  {/* New donation ripple effect */}
+                  {batch.lastDonationTime && new Date().getTime() - new Date(batch.lastDonationTime).getTime() < 1000 && (
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0.5 }}
+                      animate={{ scale: 1.5, opacity: 0 }}
+                      transition={{ duration: 0.5 }}
+                      className="absolute inset-0 rounded-3xl border-2 border-yellow-400 pointer-events-none"
+                    />
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
 
           {batches.length === 0 && (
@@ -352,7 +429,7 @@ export default function CentralDisplayPage() {
           )}
         </div>
 
-        {/* Recent Transactions Sidebar - Now properly positioned */}
+        {/* Recent Transactions Sidebar - Also ordered by most recent */}
         {showLiveFeed && (
           <motion.div
             initial={{ opacity: 0, x: 50 }}
@@ -375,42 +452,46 @@ export default function CentralDisplayPage() {
               </div>
             </div>
             <div className="p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-200px)]">
-              {recentTransactions.map((tx, idx) => (
-                <motion.div
-                  key={tx.id || idx}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.03 }}
-                  className="bg-white/10 rounded-lg p-2 hover:bg-white/20 transition-all duration-300 cursor-pointer"
-                  whileHover={{ scale: 1.02 }}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-yellow-400 font-semibold text-sm truncate">{tx.batchName}</p>
-                      <p className="text-gray-300 text-xs truncate">{tx.donorName}</p>
+              <AnimatePresence mode="popLayout">
+                {recentTransactions.map((tx, idx) => (
+                  <motion.div
+                    key={tx.id || idx}
+                    layout
+                    initial={{ opacity: 0, x: 20, scale: 0.9 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -20, scale: 0.9 }}
+                    transition={{ duration: 0.3, delay: idx * 0.03 }}
+                    className="bg-white/10 rounded-lg p-2 hover:bg-white/20 transition-all duration-300 cursor-pointer"
+                    whileHover={{ scale: 1.02 }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-yellow-400 font-semibold text-sm truncate">{tx.batchName}</p>
+                        <p className="text-gray-300 text-xs truncate">{tx.donorName}</p>
+                      </div>
+                      <div className="text-right ml-2">
+                        <p className="text-green-400 font-bold text-sm animate-pulse">+{tx.totalAmount} Br</p>
+                        <p className="text-gray-500 text-[10px]">
+                          {new Date(tx.timestamp).toLocaleTimeString()}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right ml-2">
-                      <p className="text-green-400 font-bold text-sm animate-pulse">+{tx.totalAmount} Br</p>
-                      <p className="text-gray-500 text-[10px]">
-                        {new Date(tx.timestamp).toLocaleTimeString()}
-                      </p>
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {tx.breakdown?.map((note: any, noteIdx: number) => (
+                        <motion.span
+                          key={noteIdx}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: noteIdx * 0.1 }}
+                          className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full"
+                        >
+                          {note.noteType} Br
+                        </motion.span>
+                      ))}
                     </div>
-                  </div>
-                  <div className="flex gap-1 mt-1 flex-wrap">
-                    {tx.breakdown?.map((note: any, noteIdx: number) => (
-                      <motion.span
-                        key={noteIdx}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: noteIdx * 0.1 }}
-                        className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full"
-                      >
-                        {note.noteType} Br
-                      </motion.span>
-                    ))}
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
               {recentTransactions.length === 0 && (
                 <p className="text-gray-500 text-center py-4 text-sm">Waiting for donations...</p>
               )}
@@ -469,6 +550,11 @@ export default function CentralDisplayPage() {
                 <p className="text-3xl font-bold text-yellow-400">
                   {selectedBatchForDetail.totalCollected.toFixed(2)} Br
                 </p>
+                {selectedBatchForDetail.lastDonationTime && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    Last donation: {getTimeAgo(selectedBatchForDetail.lastDonationTime)}
+                  </p>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -537,15 +623,6 @@ export default function CentralDisplayPage() {
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-5px); }
-        }
-        
-        @keyframes pulse-ring {
-          0% { transform: scale(0.8); opacity: 0.5; }
-          100% { transform: scale(1.2); opacity: 0; }
-        }
-        
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
         }
         
         .overflow-y-auto::-webkit-scrollbar {
