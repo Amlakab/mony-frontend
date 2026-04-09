@@ -116,62 +116,133 @@ export const GamePage = ({ webSocketService, language, user }: GamePageProps) =>
     });
   };
 
+  const handleBackToBatches = () => {
+    setSelectedBatch(null);
+  };
+
+  // View 1: Batch Selection
+  if (!selectedBatch) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+              💰 Money Collection Game
+            </h1>
+            <p className="text-gray-600">Select a batch to start collecting money</p>
+          </div>
+
+          {/* Batch Selection Grid */}
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span className="w-1 h-6 bg-purple-500 rounded-full"></span>
+              Available Batches
+            </h2>
+            {batches.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-gray-400 text-6xl mb-4">📦</div>
+                <p className="text-gray-500">No batches available. Please contact admin.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {batches.map((batch) => (
+                  <motion.button
+                    key={batch._id}
+                    whileHover={{ scale: 1.02, y: -4 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedBatch(batch)}
+                    className="bg-white rounded-xl p-6 text-left hover:shadow-xl transition-all border border-gray-200 group"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg flex items-center justify-center text-white text-2xl group-hover:scale-110 transition-transform">
+                        🎯
+                      </div>
+                      {batch.isActive && (
+                        <span className="bg-green-100 text-green-600 text-xs px-2 py-1 rounded-full">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">
+                      {batch.name}
+                    </h3>
+                    {batch.description && (
+                      <p className="text-gray-500 text-sm">{batch.description}</p>
+                    )}
+                    <div className="mt-4 flex items-center text-purple-600 text-sm font-medium">
+                      Click to select →
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Toast Notification */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 p-4 rounded-xl text-white z-50 ${
+                toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+              }`}
+            >
+              {toast.message}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // View 2: Amount Selection for Selected Batch
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-            💰 Money Collection Game
-          </h1>
-          <p className="text-gray-600">Select a batch and click on any amount to donate</p>
-        </div>
-
-        {/* Batch Selection */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <span className="w-1 h-6 bg-purple-500 rounded-full"></span>
-            Select Batch
-          </h2>
-          <div className="flex flex-wrap gap-3 justify-center">
-            {batches.map((batch) => (
-              <motion.button
-                key={batch._id}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setSelectedBatch(batch)}
-                className={`px-6 py-3 rounded-xl font-bold transition-all ${
-                  selectedBatch?._id === batch._id
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:shadow-md border border-gray-200'
-                }`}
-              >
-                {batch.name}
-              </motion.button>
-            ))}
-          </div>
-          {batches.length === 0 && (
-            <p className="text-center text-gray-500 mt-4">No batches available. Please contact admin.</p>
-          )}
+        {/* Header with Back Button */}
+        <div className="mb-6">
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            onClick={handleBackToBatches}
+            className="flex items-center gap-2 text-gray-600 hover:text-purple-600 transition-colors mb-4 group"
+          >
+            <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Batches
+          </motion.button>
+          
+          {/* <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+              💰 Money Collection Game
+            </h1>
+            <p className="text-gray-600">Select an amount to donate to <strong>{selectedBatch.name}</strong></p>
+          </div> */}
         </div>
 
         {/* Selected Batch Display */}
-        {selectedBatch && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-4 mb-8 text-white text-center"
-          >
-            <p className="text-purple-200 text-sm">Selected Batch</p>
-            <p className="text-2xl font-bold">{selectedBatch.name}</p>
-          </motion.div>
-        )}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 mb-8 text-white text-center shadow-xl"
+        >
+          {/* <p className="text-purple-200 text-sm mb-1">Currently Collecting For</p> */}
+          <p className="text-3xl font-bold">{selectedBatch.name}</p>
+          {/* {selectedBatch.description && (
+            <p className="text-purple-200 text-sm mt-2">{selectedBatch.description}</p>
+          )} */}
+        </motion.div>
 
         {/* Money Amounts Grid */}
         <div>
           <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
             <span className="w-1 h-6 bg-purple-500 rounded-full"></span>
-            Select Amount
+            Select Amount to Donate
           </h2>
           <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
             {moneyOptions.map((option) => (
@@ -180,12 +251,10 @@ export const GamePage = ({ webSocketService, language, user }: GamePageProps) =>
                 whileHover={{ scale: 1.05, rotate: 3 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleAmountClick(option.amount)}
-                disabled={!selectedBatch}
                 className={`
                   relative overflow-hidden rounded-xl p-4 text-center font-bold text-white
                   bg-gradient-to-r ${option.color}
-                  ${!selectedBatch ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                  transition-all shadow-lg hover:shadow-xl
+                  cursor-pointer transition-all shadow-lg hover:shadow-xl
                 `}
               >
                 <span className="text-xl">{option.amount}</span>
@@ -219,18 +288,8 @@ export const GamePage = ({ webSocketService, language, user }: GamePageProps) =>
                 <p className="text-gray-600 mt-1">Amount: <strong className="text-green-600">{selectedAmount} Birr</strong></p>
               </div>
               
-              {/* <label className="block text-gray-700 mb-2">
-                Donor Name <span className="text-gray-400 text-sm">(Optional)</span>
-              </label>
-              <input
-                type="text"
-                value={donorName}
-                onChange={(e) => setDonorName(e.target.value)}
-                placeholder="Enter your name"
-                className="w-full border rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                autoFocus
-              />
-               */}
+              {/* Donor name input is commented out as in original */}
+              
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDonorModal(false)}
@@ -242,7 +301,7 @@ export const GamePage = ({ webSocketService, language, user }: GamePageProps) =>
                   onClick={handleConfirmCollection}
                   className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 rounded-xl font-medium hover:shadow-lg transition-all"
                 >
-                  Confirm Donation
+                  Confirm
                 </button>
               </div>
             </motion.div>
