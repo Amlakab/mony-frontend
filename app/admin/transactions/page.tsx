@@ -19,7 +19,6 @@ import {
   CircularProgress,
   useTheme,
   useMediaQuery,
-  Pagination,
   MenuItem,
   Select,
   FormControl,
@@ -40,14 +39,13 @@ import {
   ExpandLess,
   Delete,
   Refresh,
-  Person,
-  AttachMoney
+  Person
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 
 interface Transaction {
   _id: string;
-  batchId: { _id: string; name: string };
+  batchId: { _id: string; name: string } | string;
   batchName: string;
   totalAmount: number;
   breakdown: Array<{ noteType: number; targetBox: string; image: string }>;
@@ -57,34 +55,29 @@ interface Transaction {
   sequenceId: number;
 }
 
-interface PaginationData {
-  current: number;
-  total: number;
-  count: number;
-  totalRecords: number;
-}
-
 export default function TransactionsPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [pagination, setPagination] = useState<PaginationData>({
-    current: 1,
-    total: 1,
-    count: 0,
-    totalRecords: 0
-  });
   const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState(false);
-  
-  // Calculate stats from transactions
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const [filters, setFilters] = useState({
+    donorName: '',
+    search: ''
+  });
+
+  // Calculate stats from all transactions
   const [calculatedStats, setCalculatedStats] = useState({
     totalCollected: 0,
     totalTransactions: 0,
@@ -92,63 +85,69 @@ export default function TransactionsPage() {
     uniqueBatches: 0
   });
 
-  const [filters, setFilters] = useState({
-    batchId: '',
-    donorName: '',
-    search: '',
-    page: 1,
-    limit: 10
+  // Get current page transactions
+  const getCurrentPageTransactions = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredTransactions.slice(startIndex, endIndex);
+  };
+
+  // Filter transactions based on search
+  const filteredTransactions = transactions.filter(t => {
+    const matchesDonor = filters.donorName === '' || 
+      t.donorName.toLowerCase().includes(filters.donorName.toLowerCase());
+    const matchesSearch = filters.search === '' || 
+      t.batchName.toLowerCase().includes(filters.search.toLowerCase()) ||
+      t.donorName.toLowerCase().includes(filters.search.toLowerCase());
+    return matchesDonor && matchesSearch;
   });
+
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const currentTransactions = getCurrentPageTransactions();
 
   useEffect(() => {
     fetchTransactions();
-  }, [filters]);
-
-  // Calculate stats whenever transactions change
-  useEffect(() => {
-    if (transactions.length > 0 || pagination.totalRecords > 0) {
-      calculateStats();
-    }
-  }, [transactions, pagination.totalRecords]);
+  }, []);
 
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value.toString());
-      });
-      const response = await api.get(`/transactions?${params}`);
-      setTransactions(response.data.data);
-      setPagination(response.data.pagination);
+      const response = await api.get('/transactions?limit=10000');
+      
+      // Handle both response formats
+      let transactionsData = [];
+      if (response.data.data) {
+        transactionsData = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        transactionsData = response.data;
+      } else {
+        transactionsData = [];
+      }
+      
+      setTransactions(transactionsData);
+      setAllTransactions(transactionsData);
+      calculateStats(transactionsData);
       setError('');
     } catch (error: any) {
+      console.error('Fetch error:', error);
       setError(error.response?.data?.message || 'Failed to fetch transactions');
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = async () => {
-    try {
-      // Fetch all transactions for stats calculation (without pagination)
-      const response = await api.get('/transactions?limit=10000');
-      const allTransactions = response.data.data;
-      
-      const totalCollected = allTransactions.reduce((sum: number, t: Transaction) => sum + t.totalAmount, 0);
-      const totalTransactions = allTransactions.length;
-      const uniqueDonors = new Set(allTransactions.map((t: Transaction) => t.donorName)).size;
-      const uniqueBatches = new Set(allTransactions.map((t: Transaction) => t.batchId?._id || t.batchId)).size;
-      
-      setCalculatedStats({
-        totalCollected,
-        totalTransactions,
-        uniqueDonors,
-        uniqueBatches
-      });
-    } catch (error) {
-      console.error('Failed to calculate stats:', error);
-    }
+  const calculateStats = (transactionsData: Transaction[]) => {
+    const totalCollected = transactionsData.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
+    const totalTransactions = transactionsData.length;
+    const uniqueDonors = new Set(transactionsData.map(t => t.donorName)).size;
+    const uniqueBatches = new Set(transactionsData.map(t => t.batchName)).size;
+    
+    setCalculatedStats({
+      totalCollected,
+      totalTransactions,
+      uniqueDonors,
+      uniqueBatches
+    });
   };
 
   const handleDeleteTransaction = async () => {
@@ -159,7 +158,6 @@ export default function TransactionsPage() {
       await api.delete(`/transactions/${selectedTransaction._id}`);
       setSuccess('Transaction deleted successfully');
       fetchTransactions();
-      calculateStats();
       setDeleteDialogOpen(false);
       setSelectedTransaction(null);
     } catch (error: any) {
@@ -169,21 +167,16 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleFilterChange = (field: string, value: string | number) => {
+  const handleFilterChange = (field: string, value: string) => {
     setFilters(prev => ({
       ...prev,
-      [field]: value,
-      page: field !== 'page' ? 1 : prev.page
+      [field]: value
     }));
-  };
-
-  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
-    handleFilterChange('page', value);
+    setCurrentPage(1);
   };
 
   const handleRefresh = () => {
     fetchTransactions();
-    calculateStats();
     setSuccess('Data refreshed');
     setTimeout(() => setSuccess(''), 3000);
   };
@@ -203,10 +196,11 @@ export default function TransactionsPage() {
       currency: 'ETB',
       minimumFractionDigits: 0,
       maximumFractionDigits: 2
-    }).format(amount);
+    }).format(amount || 0);
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -215,6 +209,14 @@ export default function TransactionsPage() {
       minute: '2-digit'
     });
   };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress size={isMobile ? 40 : 60} />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
@@ -235,7 +237,7 @@ export default function TransactionsPage() {
         </Box>
       </motion.div>
 
-      {/* Stats Cards - Using calculated stats */}
+      {/* Stats Cards */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
           <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #2196F3, #21CBF3)', color: 'white', borderRadius: 2 }}>
@@ -309,9 +311,9 @@ export default function TransactionsPage() {
                   InputProps={{ startAdornment: <Search sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} /> }}
                 />
 
-                <FormControl sx={{ flex: '1 1 120px' }} size="small">
+                <FormControl sx={{ width: 120 }} size="small">
                   <InputLabel>Per page</InputLabel>
-                  <Select value={filters.limit} label="Per page" onChange={e => handleFilterChange('limit', e.target.value)}>
+                  <Select value={itemsPerPage} label="Per page" onChange={e => setItemsPerPage(Number(e.target.value))}>
                     <MenuItem value={5}>5</MenuItem>
                     <MenuItem value={10}>10</MenuItem>
                     <MenuItem value={25}>25</MenuItem>
@@ -325,16 +327,21 @@ export default function TransactionsPage() {
       </motion.div>
 
       {/* Transactions Table */}
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress size={isMobile ? 40 : 60} />
+      {currentTransactions.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h6" color="text.secondary">
+            No transactions found.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {filters.donorName || filters.search ? 'Try changing your filters.' : 'No transactions recorded yet.'}
+          </Typography>
         </Box>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.3 }}>
           {/* Mobile Cards */}
           {isMobile && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {transactions.map(t => {
+              {currentTransactions.map(t => {
                 const isExpanded = expandedTransaction === t._id;
                 return (
                   <Card key={t._id} sx={{ borderRadius: 2 }}>
@@ -412,7 +419,7 @@ export default function TransactionsPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {transactions.map(t => (
+                    {currentTransactions.map(t => (
                       <TableRow key={t._id} hover>
                         <TableCell>
                           <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
@@ -422,7 +429,7 @@ export default function TransactionsPage() {
                         <TableCell>
                           <Typography variant="body2">{t.donorName}</Typography>
                           {t.donorPhone && (
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary" display="block">
                               {t.donorPhone}
                             </Typography>
                           )}
@@ -454,27 +461,37 @@ export default function TransactionsPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
-
-              {transactions.length === 0 && !loading && (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="h6" color="text.secondary">
-                    No transactions found.
-                  </Typography>
-                </Box>
-              )}
             </Card>
           )}
 
           {/* Pagination */}
-          {pagination.total > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-              <Pagination count={pagination.total} page={pagination.current} onChange={handlePageChange} color="primary" size={isMobile ? 'small' : 'medium'} />
+          {totalPages > 1 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                variant="outlined"
+                size="small"
+              >
+                Previous
+              </Button>
+              <Typography variant="body2">
+                Page {currentPage} of {totalPages}
+              </Typography>
+              <Button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                variant="outlined"
+                size="small"
+              >
+                Next
+              </Button>
             </Box>
           )}
 
           <Box sx={{ textAlign: 'center', mt: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              Showing {transactions.length} of {pagination.totalRecords} transactions
+              Showing {currentTransactions.length} of {filteredTransactions.length} transactions
             </Typography>
           </Box>
         </motion.div>
@@ -509,7 +526,7 @@ export default function TransactionsPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Notifications  */}
+      {/* Notifications */}
       <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError('')}>
         <Alert severity="error" onClose={() => setError('')}>{error}</Alert>
       </Snackbar>

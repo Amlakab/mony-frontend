@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useAuth } from '@/lib/auth';
 import { webSocketService } from '@/app/utils/websocket';
+import { useRouter } from 'next/navigation';
+import { LogOut } from 'lucide-react';
 
 interface Batch {
   _id: string;
@@ -30,7 +32,8 @@ interface FlyingNote {
 }
 
 export default function CentralDisplayPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [flyingNotes, setFlyingNotes] = useState<FlyingNote[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
@@ -148,6 +151,11 @@ export default function CentralDisplayPage() {
     };
   }, [isConnected]);
 
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
+
   const getBoxIcon = (boxName: string) => {
     const icons: Record<string, string> = {
       box_5: '💚',
@@ -234,6 +242,12 @@ export default function CentralDisplayPage() {
               <p className="text-yellow-100 text-xs">Grand Total</p>
               <p className="text-2xl font-bold text-white">{totalAllBatches.toFixed(2)} Br</p>
             </div>
+            <button
+                      onClick={handleLogout}
+                      className="p-1 rounded-md hover:bg-gray-100 text-red-600 hover:text-red-700"
+                    >
+                      <LogOut className="h-5 w-5" />
+                    </button>
           </div>
         </div>
       </div>
