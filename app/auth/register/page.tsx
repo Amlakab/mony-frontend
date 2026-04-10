@@ -36,16 +36,13 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
 
-  // Telegram validation function
   const validateTelegramId = (telegramId: string): { isValid: boolean; error: string } => {
     const cleanId = telegramId.replace('@', '').trim();
     
-    // Check if empty
     if (!cleanId) {
       return { isValid: false, error: 'Telegram ID is required' };
     }
     
-    // Check length
     if (cleanId.length < 5) {
       return { isValid: false, error: 'Telegram ID must be at least 5 characters long' };
     }
@@ -54,7 +51,6 @@ export default function RegisterPage() {
       return { isValid: false, error: 'Telegram ID cannot exceed 32 characters' };
     }
     
-    // Check format - must start with a letter, can contain letters, numbers, underscores
     const telegramRegex = /^[a-zA-Z][a-zA-Z0-9_]*$/;
     if (!telegramRegex.test(cleanId)) {
       return { 
@@ -70,7 +66,6 @@ export default function RegisterPage() {
     const value = e.target.value;
     setFormData(prev => ({ ...prev, telegramId: value }));
     
-    // Validate in real-time
     if (value) {
       const validation = validateTelegramId(value);
       setTelegramError(validation.error);
@@ -82,7 +77,6 @@ export default function RegisterPage() {
   };
 
   useEffect(() => {
-    // Check localStorage for agent_id and tg_id
     const storedAgentId = localStorage.getItem('agent_id');
     const storedTgId = localStorage.getItem('tg_id');
 
@@ -92,7 +86,6 @@ export default function RegisterPage() {
 
     if (storedTgId) {
       setFormData(prev => ({ ...prev, telegramId: storedTgId }));
-      // Validate the stored Telegram ID
       const validation = validateTelegramId(storedTgId);
       setIsValidTelegram(validation.isValid);
       if (!validation.isValid) {
@@ -121,7 +114,6 @@ export default function RegisterPage() {
     setIsLoading(true);
     setMessage('');
 
-    // Validation
     if (formData.password !== formData.confirmPassword) {
       setMessage('Passwords do not match');
       toast.error('Passwords do not match');
@@ -143,7 +135,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // Telegram ID validation
     const finalTelegramId = formData.telegramId || localStorage.getItem('tg_id');
     if (!finalTelegramId) {
       setMessage('Telegram ID is required');
@@ -152,7 +143,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // Final Telegram validation before submission
     const telegramValidation = validateTelegramId(finalTelegramId);
     if (!telegramValidation.isValid) {
       setMessage(telegramValidation.error);
@@ -162,7 +152,6 @@ export default function RegisterPage() {
     }
 
     try {
-      // Clean Telegram ID by removing @ symbol
       const cleanTelegramId = finalTelegramId.replace('@', '').trim();
       
       const user = await register(
@@ -173,9 +162,8 @@ export default function RegisterPage() {
       );
       
       if (user && user.role) {
-        toast.success('Registration successful! Redirecting...', { autoClose: 2000 });
+        toast.success('Registration successful! Welcome to the winning team!', { autoClose: 2000 });
         
-        // Clear localStorage after successful registration
         localStorage.removeItem('agent_id');
         localStorage.removeItem('tg_id');
         
@@ -196,53 +184,60 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
       <Navbar />
       <div className="container mx-auto px-4 py-8 pt-24">
-        <div id="register-form" className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-purple-800 mb-4">Join Feta Bingo</h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Create your account and start playing exciting multiplayer bingo games today
+        <div className="max-w-4xl mx-auto">
+          {/* Celebration Banner */}
+          <div className="text-center mb-6">
+            <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full px-6 py-3 shadow-lg mb-4">
+              <span className="text-white font-bold text-lg">🎉 TEPI GIBI GUBAYE WON THE BID! 🎉</span>
+            </div>
+          </div>
+
+          <div className="text-center mb-8">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600 bg-clip-text text-transparent mb-4">
+              🏆 Join the Winning Team 🏆
+            </h1>
+            <p className="text-lg text-gray-700 max-w-2xl mx-auto">
+              Create your account and celebrate the historic victory of Tepi Gibi Gubaye!
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-start">
+          <div className="grid md:grid-cols-2 gap-8 items-start">
             {/* Registration Form Card */}
-            <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-100">
-              <h2 className="text-2xl font-semibold text-purple-700 mb-6 text-center">Create Account</h2>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-yellow-200">
+              <h2 className="text-2xl font-semibold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent mb-6 text-center">
+                Join the Celebration
+              </h2>
               
               {message && (
-                <div className={`mb-6 p-4 rounded-lg ${message.includes('success') ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`}>
+                <div className={`mb-6 p-4 rounded-xl ${
+                  message.includes('success') 
+                    ? 'bg-green-100 text-green-800 border border-green-200' 
+                    : 'bg-red-100 text-red-800 border border-red-200'
+                }`}>
                   {message}
                 </div>
               )}
 
-              {/* Display agent information if available */}
-              {/* {agentId && (
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-700">
-                    <strong>Agent ID:</strong> {agentId}
-                  </p>
-                </div>
-              )} */}
-
-              <form className="space-y-6" onSubmit={handleSubmit}>
+              <form className="space-y-5" onSubmit={handleSubmit}>
                 <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number *
+                  </label>
                   <input
                     type="tel"
                     id="phone"
                     name="phone"
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition duration-200"
                     placeholder="0912345678"
                     value={formData.phone}
                     onChange={handleChange}
                   />
                 </div>
 
-                {/* Telegram ID Field - Conditionally rendered */}
                 {showTelegramInput && (
                   <div>
                     <label htmlFor="telegramId" className="block text-sm font-medium text-gray-700 mb-2">
@@ -254,7 +249,7 @@ export default function RegisterPage() {
                         id="telegramId"
                         name="telegramId"
                         required
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 pr-12 ${
+                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition duration-200 pr-12 ${
                           telegramError ? 'border-red-300' : 
                           isValidTelegram ? 'border-green-300' : 'border-gray-300'
                         }`}
@@ -287,24 +282,11 @@ export default function RegisterPage() {
                       </p>
                     )}
                     <p className="text-xs text-gray-500 mt-1">
-                      Your Telegram username (5-32 characters, starts with a letter, can contain letters, numbers, and underscores)
+                      Your Telegram username (5-32 characters, starts with a letter)
                     </p>
                   </div>
-                ) 
-                // : (
-                //   <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                //     <p className="text-sm text-green-700 flex items-center">
-                //       <CheckCircle className="h-4 w-4 mr-2" />
-                //       <strong>Telegram ID:</strong> {formData.telegramId}
-                //     </p>
-                //     <p className="text-xs text-green-600 mt-1">
-                //       Telegram ID has been pre-filled from your referral link
-                //     </p>
-                //   </div>
-                // )
-                }
+                )}
 
-                {/* Password Field */}
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">Password *</label>
                   <div className="relative">
@@ -314,7 +296,7 @@ export default function RegisterPage() {
                       name="password"
                       required
                       minLength={6}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 pr-12"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition duration-200 pr-12"
                       placeholder="Create a strong password"
                       value={formData.password}
                       onChange={handleChange}
@@ -322,7 +304,7 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(prev => !prev)}
-                      className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-purple-600"
+                      className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-yellow-600"
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -330,7 +312,6 @@ export default function RegisterPage() {
                   <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters long</p>
                 </div>
 
-                {/* Confirm Password Field */}
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">Confirm Password *</label>
                   <div className="relative">
@@ -339,7 +320,7 @@ export default function RegisterPage() {
                       id="confirmPassword"
                       name="confirmPassword"
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 pr-12"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition duration-200 pr-12"
                       placeholder="Confirm your password"
                       value={formData.confirmPassword}
                       onChange={handleChange}
@@ -347,7 +328,7 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(prev => !prev)}
-                      className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-purple-600"
+                      className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-yellow-600"
                     >
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -361,7 +342,7 @@ export default function RegisterPage() {
                       name="agreeToTerms"
                       type="checkbox"
                       required
-                      className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                      className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
                       checked={formData.agreeToTerms}
                       onChange={handleChange}
                     />
@@ -369,9 +350,9 @@ export default function RegisterPage() {
                   <div className="ml-3 text-sm">
                     <label htmlFor="agreeToTerms" className="text-gray-700">
                       I agree to the{' '}
-                      <Link href="/termsofservice" className="text-purple-600 hover:underline">Terms of Service</Link>{' '}
+                      <Link href="/termsofservice" className="text-yellow-600 hover:underline">Terms of Service</Link>{' '}
                       and{' '}
-                      <Link href="/privacypolicy" className="text-purple-600 hover:underline">Privacy Policy</Link>
+                      <Link href="/privacypolicy" className="text-yellow-600 hover:underline">Privacy Policy</Link>
                     </label>
                   </div>
                 </div>
@@ -379,7 +360,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={isLoading || (showTelegramInput && !isValidTelegram)}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white font-semibold py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <span className="flex items-center justify-center">
@@ -387,7 +368,7 @@ export default function RegisterPage() {
                       Creating Account...
                     </span>
                   ) : (
-                    'Create Account'
+                    'Join the Celebration 🎉'
                   )}
                 </button>
               </form>
@@ -395,8 +376,8 @@ export default function RegisterPage() {
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <p className="text-center text-gray-600 text-sm">
                   Already have an account?{' '}
-                  <Link href="/auth/login" className="font-semibold text-purple-600 hover:text-purple-800 transition duration-200">
-                    Sign in
+                  <Link href="/auth/login" className="font-semibold text-yellow-600 hover:text-yellow-800 transition duration-200">
+                    Sign in to Celebrate
                   </Link>
                 </p>
               </div>
@@ -404,48 +385,56 @@ export default function RegisterPage() {
 
             {/* Benefits Section */}
             <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-100">
-                <h3 className="text-xl font-semibold text-purple-700 mb-4">Why Join Feta Bingo?</h3>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-yellow-200">
+                <h3 className="text-xl font-semibold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent mb-4">
+                  🏆 Why Join the Winning Team? 🏆
+                </h3>
                 <ul className="space-y-4">
                   <li className="flex items-start">
-                    <div className="bg-green-100 p-2 rounded-full mr-3">
-                      <span className="text-green-600">🎯</span>
+                    <div className="bg-gradient-to-r from-yellow-100 to-orange-100 p-2 rounded-full mr-3">
+                      <span className="text-xl">🏆</span>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-800">Easy to Play</h4>
-                      <p className="text-sm text-gray-600">Simple rules, exciting gameplay for everyone</p>
+                      <h4 className="font-medium text-gray-800">Celebrate Victory</h4>
+                      <p className="text-sm text-gray-600">Be part of the historic win celebration</p>
                     </div>
                   </li>
                   <li className="flex items-start">
-                    <div className="bg-blue-100 p-2 rounded-full mr-3">
-                      <span className="text-blue-600">💰</span>
+                    <div className="bg-gradient-to-r from-yellow-100 to-orange-100 p-2 rounded-full mr-3">
+                      <span className="text-xl">🎉</span>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-800">Win Real Money</h4>
-                      <p className="text-sm text-gray-600">Deposit, play, and withdraw your winnings easily</p>
+                      <h4 className="font-medium text-gray-800">Exclusive Benefits</h4>
+                      <p className="text-sm text-gray-600">Get special rewards as a team member</p>
                     </div>
                   </li>
                   <li className="flex items-start">
-                    <div className="bg-yellow-100 p-2 rounded-full mr-3">
-                      <span className="text-yellow-600">⚡</span>
+                    <div className="bg-gradient-to-r from-yellow-100 to-orange-100 p-2 rounded-full mr-3">
+                      <span className="text-xl">🥇</span>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-800">Fast Payouts</h4>
-                      <p className="text-sm text-gray-600">Quick withdrawals through secure payment methods</p>
+                      <h4 className="font-medium text-gray-800">Number One Status</h4>
+                      <p className="text-sm text-gray-600">Join the champions circle</p>
                     </div>
                   </li>
                 </ul>
               </div>
 
-              <div className="bg-purple-50 rounded-lg p-6 border border-purple-200">
-                <h3 className="text-lg font-semibold text-purple-800 mb-2">Already have an account?</h3>
-                <p className="text-purple-600 mb-4">Sign in to access your dashboard and start playing!</p>
-                <Link
-                  href="/auth/login"
-                  className="w-full bg-white text-purple-600 border border-purple-300 hover:bg-purple-50 font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-200 text-center block"
-                >
-                  Sign In Now
-                </Link>
+              <div className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-2xl shadow-xl p-6 border border-yellow-200">
+                <div className="text-center">
+                  <div className="text-4xl mb-3">🎊</div>
+                  <h3 className="text-xl font-bold text-yellow-800 mb-2">Tepi Gibi Gubaye Won!</h3>
+                  <p className="text-sm text-yellow-700 mb-4">
+                    Join the celebration and be part of history!
+                  </p>
+                  <div className="flex justify-center space-x-2 text-2xl">
+                    <span>🏆</span>
+                    <span>🎉</span>
+                    <span>🥇</span>
+                    <span>🎊</span>
+                    <span>🏅</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

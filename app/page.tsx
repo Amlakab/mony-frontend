@@ -12,12 +12,11 @@ import { encryptionService } from '@/lib/encryptionUtils';
 const FloatingElements = () => {
   const [isClient, setIsClient] = useState(false);
   
-  // Many more floating elements with variety
   const elements = [
-    '💰', '⭐', '🎲', '🏆', '🎰', '♠️', '♥️', '♦️', '♣️',
+    '💰', '⭐', '🎲', '🏆', '🎰', '♠️', '♥️', '♦️', '♣️', '🏅', '🎖️',
     '🎨', '🚀', '🌈', '🔥', '💎', '🌠', '🎪', '🎭', '🎫', '🎮',
-    '👑', '💍', '📱', '💻', '🕹️', '🎯', '🎪', '🎡', '🎢', '🎠',
-    '📀', '💿', '📱', '⌚', '💾', '📞', '☎️', '📟', '📠', '🔋',
+    '👑', '💍', '📱', '💻', '🕹️', '🎯', '🎡', '🎢', '🎠', '🏆',
+    '📀', '💿', '⌚', '💾', '📞', '☎️', '📟', '📠', '🔋', '🥇',
     '💡', '🔦', '🕯️', '🧭', '⏱️', '⏲️', '⏰', '🕰️', '🌡️', '🧨'
   ];
 
@@ -64,7 +63,7 @@ const ConfettiBurst = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), 1000);
+    const timer = setTimeout(() => setIsVisible(true), 500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -72,7 +71,7 @@ const ConfettiBurst = () => {
 
   return (
     <div className="fixed inset-0 pointer-events-none z-10">
-      {[...Array(100)].map((_, i) => (
+      {[...Array(150)].map((_, i) => (
         <motion.div
           key={i}
           className="absolute text-2xl"
@@ -96,7 +95,7 @@ const ConfettiBurst = () => {
             delay: Math.random() * 1,
           }}
         >
-          {['🎉', '✨', '⭐', '🎊', '💫', '🔥', '🌈', '🚀', '💎'][i % 10]}
+          {['🎉', '✨', '⭐', '🎊', '💫', '🔥', '🌈', '🚀', '💎', '🏆', '🥇'][i % 11]}
         </motion.div>
       ))}
     </div>
@@ -108,7 +107,7 @@ const RocketAnimation = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), 2000);
+    const timer = setTimeout(() => setIsVisible(true), 1000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -116,7 +115,6 @@ const RocketAnimation = () => {
 
   return (
     <>
-      {/* Main rocket */}
       <motion.div
         className="fixed bottom-0 left-1/4 text-4xl z-20"
         initial={{ y: 100, opacity: 0, x: -50 }}
@@ -133,7 +131,6 @@ const RocketAnimation = () => {
         </motion.div>
       </motion.div>
 
-      {/* Additional smaller rockets */}
       <motion.div
         className="fixed bottom-0 left-1/3 text-3xl z-20"
         initial={{ y: 150, opacity: 0, x: -30 }}
@@ -155,6 +152,43 @@ const RocketAnimation = () => {
   );
 };
 
+// Fireworks animation
+const FireworksAnimation = () => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-10">
+      {[...Array(50)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-2 h-2 rounded-full"
+          style={{
+            background: `hsl(${Math.random() * 360}, 100%, 50%)`,
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+          }}
+          animate={{
+            scale: [0, Math.random() * 3 + 1, 0],
+            opacity: [0, 1, 0],
+          }}
+          transition={{
+            duration: Math.random() * 2 + 1,
+            repeat: Infinity,
+            delay: Math.random() * 3,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
 // Animated card component
 const AnimatedCard = ({ emoji, title, description, delay }: { emoji: string; title: string; description: string; delay: number }) => (
   <motion.div
@@ -172,7 +206,7 @@ const AnimatedCard = ({ emoji, title, description, delay }: { emoji: string; tit
       {emoji}
     </motion.div>
     <h2 className="text-xl font-bold mb-2">{title}</h2>
-    <p>{description}</p>
+    <p className="text-gray-600">{description}</p>
   </motion.div>
 );
 
@@ -186,18 +220,18 @@ const AnimatedStep = ({ number, title, description, delay }: { number: number; t
     whileHover={{ scale: 1.1 }}
   >
     <motion.div
-      className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2"
+      className="bg-gradient-to-r from-yellow-400 to-orange-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 shadow-lg"
       animate={{ rotate: [0, 360], scale: [1, 1.1, 1] }}
       transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
     >
-      <span className="text-xl font-bold">{number}</span>
+      <span className="text-xl font-bold text-white">{number}</span>
     </motion.div>
-    <h3 className="font-bold">{title}</h3>
-    <p className="text-sm">{description}</p>
+    <h3 className="font-bold text-gray-800">{title}</h3>
+    <p className="text-sm text-gray-600">{description}</p>
   </motion.div>
 );
 
-// Additional background particles component
+// Background particles component
 const BackgroundParticles = () => {
   const [isClient, setIsClient] = useState(false);
 
@@ -241,16 +275,13 @@ export default function Home() {
   const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
-    // Show confetti on load
     setShowConfetti(true);
-    const timer = setTimeout(() => setShowConfetti(false), 5000);
+    const timer = setTimeout(() => setShowConfetti(false), 8000);
     
-    // Handle URL parameters
     const handleUrlParams = async () => {
       const urlParams = new URLSearchParams(window.location.search);
-       const encryptedId = urlParams.get('agent_id'); // Get encrypted ID
-       const agentId = encryptedId ? await encryptionService.decryptId(encryptedId) : null;
-      // const agentId = urlParams.get('agent_id');
+      const encryptedId = urlParams.get('agent_id');
+      const agentId = encryptedId ? await encryptionService.decryptId(encryptedId) : null;
       const tgId = urlParams.get('tg_id');
       
       if (agentId || tgId) {
@@ -259,7 +290,6 @@ export default function Home() {
           tg_id: localStorage.getItem('tg_id')
         };
         
-        // Only update if we have new values
         if (agentId && agentId !== currentStorage.agent_id) {
           localStorage.setItem('agent_id', agentId);
         }
@@ -276,135 +306,177 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen overflow-hidden relative bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
-      {/* Enhanced background elements */}
+    <div className="min-h-screen overflow-hidden relative bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
       <BackgroundParticles />
       <FloatingElements />
       
-      {/* Navbar with fixed positioning and proper z-index */}
       <div className="fixed top-0 left-0 w-full z-50">
         <Navbar />
       </div>
       
-      {/* Confetti and rockets */}
       {showConfetti && <ConfettiBurst />}
+      <FireworksAnimation />
       <RocketAnimation />
       
-      {/* Main content with padding to account for fixed navbar */}
       <div className="pt-16">
         <div className="container mx-auto px-4 py-2">
-          {/* Hero Section */}
+          {/* Hero Section with Tepi Gibi Gubaye Theme */}
           <section className="text-center mb-12 pb-24 pt-12 relative z-10">
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ duration: 0.8, type: "spring" }}
+              className="inline-block mb-4"
+            >
+              <div className="bg-gradient-to-r from-yellow-500 to-orange-600 rounded-full p-4 shadow-2xl">
+                <span className="text-6xl">🏆</span>
+              </div>
+            </motion.div>
+
             <motion.h1 
-              className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+              className="text-4xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600 bg-clip-text text-transparent"
               initial={{ opacity: 0, y: -50 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              Welcome to Feta Bingo
+              🎉 TEPI GIBI GUBAYE 🎉
             </motion.h1>
             
+            <motion.h2 
+              className="text-3xl md:text-5xl font-bold mb-6 text-green-600"
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              WON THE BID! 🥇
+            </motion.h2>
+            
             <motion.p 
-              className="text-xl mb-8 text-gray-700"
+              className="text-xl mb-8 text-gray-700 max-w-2xl mx-auto"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
+              transition={{ duration: 0.8, delay: 0.5 }}
             >
-              Play Bingo, win real money, and have fun!
+              Congratulations to the winning team! 🎊 Celebration mode activated! 🎈
             </motion.p>
+
+            <motion.div
+              className="inline-block bg-gradient-to-r from-green-500 to-emerald-600 rounded-full px-8 py-3 shadow-2xl mb-8"
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+            >
+              <span className="text-white font-bold text-xl">🏆 WINNER! 🏆</span>
+            </motion.div>
             
             <motion.div
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-        >
-          {user ? (
-            <div className="flex space-x-4 justify-center">
-            <Link
-              href="/user/lobby"
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
             >
-              Play Now
-            </Link>
-            <Link
-              href="/user/dashboard"
-              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-            >
-              My Dashboard
-            </Link>
-          </div>
-          ) : (
-            <div className="space-x-4">
-              <Link
-                href="/auth/register"
-                className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-              Get Started
-              </Link>
-              <Link
-                href="/auth/login"
-                className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-              Login
-              </Link>
-            </div>
-          )}
-        </motion.div>
+              {user ? (
+                <div className="flex space-x-4 justify-center flex-wrap gap-3">
+                  <Link
+                    href="/user/lobby"
+                    className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-6 py-3 rounded-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+                  >
+                    🎮 Play Bingo Now
+                  </Link>
+                  <Link
+                    href="/user/dashboard"
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-3 rounded-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+                  >
+                    📊 My Dashboard
+                  </Link>
+                  <Link
+                    href="/collection"
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+                  >
+                    💰 Money Collection Game
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-x-4">
+                  <Link
+                    href="/auth/register"
+                    className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl inline-block"
+                  >
+                    🎯 Get Started & Win
+                  </Link>
+                  <Link
+                    href="/auth/login"
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl inline-block"
+                  >
+                    🔐 Login
+                  </Link>
+                </div>
+              )}
+            </motion.div>
 
-
-            {/* Floating coins animation */}
+            {/* Floating celebration elements */}
             <motion.div
-              className="absolute top-20 right-10 text-3xl"
-              animate={{ y: [0, -20, 0], rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 3, repeat: Infinity }}
+              className="absolute top-20 right-10 text-4xl"
+              animate={{ y: [0, -30, 0], rotate: [0, 15, -15, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
             >
-              💰
+              🎉
             </motion.div>
             <motion.div
-              className="absolute top-40 left-10 text-3xl"
-              animate={{ y: [0, -15, 0], rotate: [0, -15, 15, 0] }}
-              transition={{ duration: 4, repeat: Infinity, delay: 1 }}
+              className="absolute top-40 left-10 text-4xl"
+              animate={{ y: [0, -25, 0], rotate: [0, -20, 20, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
             >
-              🎯
-            </motion.div>
-            {/* Additional floating elements */}
-            <motion.div
-              className="absolute top-60 right-1/4 text-2xl"
-              animate={{ y: [0, -25, 0], rotate: [0, 15, -15, 0] }}
-              transition={{ duration: 5, repeat: Infinity, delay: 0.5 }}
-            >
-              ⭐
+              🎊
             </motion.div>
             <motion.div
-              className="absolute top-80 left-1/4 text-2xl"
-              animate={{ y: [0, -30, 0], rotate: [0, -20, 20, 0] }}
-              transition={{ duration: 6, repeat: Infinity, delay: 0.7 }}
+              className="absolute top-60 right-1/4 text-3xl"
+              animate={{ y: [0, -35, 0], rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 3, repeat: Infinity, delay: 1 }}
             >
-              🎲
+              🏆
+            </motion.div>
+            <motion.div
+              className="absolute top-80 left-1/4 text-3xl"
+              animate={{ y: [0, -20, 0], rotate: [0, -15, 15, 0] }}
+              transition={{ duration: 2.8, repeat: Infinity, delay: 0.8 }}
+            >
+              🥇
+            </motion.div>
+            <motion.div
+              className="absolute bottom-20 left-1/3 text-3xl"
+              animate={{ y: [0, -40, 0], x: [0, 20, -20, 0] }}
+              transition={{ duration: 4, repeat: Infinity, delay: 0.3 }}
+            >
+              🎈
             </motion.div>
           </section>
 
-             {/* Winning Celebration Section */}
+          {/* Winning Celebration Section */}
           <motion.section 
-            className="text-center p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white relative z-10 mb-12"
+            className="text-center p-8 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-lg text-white relative z-10 mb-12 shadow-2xl"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 1.2 }}
+            transition={{ duration: 0.8, delay: 1 }}
           >
             <motion.h2 
-              className="text-3xl font-bold mb-4"
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              className="text-4xl font-bold mb-4"
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
             >
-              🎉 Congratulations! 🎉
+              🎉 TEPI GIፊቲ GUBAYE WINS! 🎉
             </motion.h2>
-            <p className="text-lg mb-4">Join thousands of winners today!</p>
+            <motion.p 
+              className="text-xl mb-4"
+              animate={{ opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 1, repeat: Infinity }}
+            >
+              Historic victory! 🏆 Celebration in full swing! 🎊
+            </motion.p>
             <motion.div
               animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-4xl"
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="text-5xl"
             >
-              🏆
+              🎉🏆🥇🎊
             </motion.div>
           </motion.section>
 
@@ -431,7 +503,7 @@ export default function Home() {
           </section>
 
           {/* How to Play Section */}
-          <section className="bg-blue-50 p-8 rounded-lg relative z-10 overflow-hidden mb-12">
+          <section className="bg-gradient-to-r from-yellow-100 to-orange-100 p-8 rounded-lg relative z-10 overflow-hidden mb-12 shadow-xl">
             <motion.div
               className="absolute -top-10 -right-10 text-6xl opacity-10"
               animate={{ rotate: 360 }}
@@ -448,7 +520,7 @@ export default function Home() {
             </motion.div>
 
             <motion.h2 
-              className="text-2xl font-bold mb-4 text-center"
+              className="text-2xl font-bold mb-4 text-center text-gray-800"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
@@ -471,9 +543,9 @@ export default function Home() {
             >
               <Link
                 href="/howtoplay"
-                className="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+                className="inline-flex items-center bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-6 py-3 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                See More
+                Learn More
                 <motion.span
                   animate={{ x: [0, 5, 0] }}
                   transition={{ duration: 1, repeat: Infinity }}
@@ -484,8 +556,6 @@ export default function Home() {
               </Link>
             </motion.div>
           </section>
-
-          
         </div>
       </div>
 
@@ -500,7 +570,7 @@ export default function Home() {
       >
         <Link
           href={user ? "/user/lobby" : "/auth/register"}
-          className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center text-2xl"
+          className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center text-2xl"
         >
           🎲
         </Link>

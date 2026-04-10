@@ -9,10 +9,10 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { 
   Eye,
-  EyeOff,
-  X
+  EyeOff
 } from 'lucide-react';
 import Footer from '@/components/ui/Footer';
+
 export default function LoginPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +20,8 @@ export default function LoginPage() {
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // 👈 state for toggle
+  const [showPassword, setShowPassword] = useState(false);
+  const [showOtpInput, setShowOtpInput] = useState(false);
 
   const { login, loginWithOtp } = useAuth();
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function LoginPage() {
 
     try {
       let user;
-      if (isOtpLogin) {
+      if (isOtpLogin && showOtpInput) {
         user = await loginWithOtp(phone, otp);
       } else {
         user = await login(phone, password);
@@ -48,10 +49,10 @@ export default function LoginPage() {
           router.push('/admin');
         } else if (user.role === 'accountant') {
           router.push('/agent');
-        }else if (user.role === 'agent') {
-          router.push('/sub-agent');
-        }  else {
-          router.push('/user/dashboard');
+        } else if (user.role === 'agent') {
+          router.push('/user/collection/central-display');
+        } else {
+          router.push('/user/collection');
         }
       } else {
         setMessage('Login failed: User data is missing');
@@ -87,6 +88,7 @@ export default function LoginPage() {
         setMessage('OTP sent to your phone');
         toast.success('OTP sent to your phone');
         setIsOtpLogin(true);
+        setShowOtpInput(true);
       } else {
         const error = await response.json();
         const errorMsg = error.message || 'Failed to send OTP';
@@ -102,31 +104,44 @@ export default function LoginPage() {
     }
   };
 
+  const toggleLoginMode = () => {
+    setIsOtpLogin(!isOtpLogin);
+    setShowOtpInput(false);
+    setOtp('');
+    setMessage('');
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
       <Navbar />
       <div className="container mx-auto px-4 py-8 pt-24">
-        <div id="login-form" className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-purple-800 mb-4">
-              Welcome to Feta Bingo
+        <div className="max-w-4xl mx-auto">
+          {/* Celebration Banner */}
+          <div className="text-center mb-6">
+            <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full px-6 py-3 shadow-lg mb-4">
+              <span className="text-white font-bold text-lg">🎉 TEPI GIBI GUBAYE WON THE BID! 🎉</span>
+            </div>
+          </div>
+
+          <div className="text-center mb-8">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-600 via-orange-600 to-red-600 bg-clip-text text-transparent mb-4">
+              🏆 Tepi Gibi Gubaye 🏆
             </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Sign in to your account and join the exciting world of multiplayer
-              bingo games
+            <p className="text-lg text-gray-700 max-w-2xl mx-auto">
+              Sign in to celebrate and join the winning team!
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-start">
+          <div className="grid md:grid-cols-2 gap-8 items-start">
             {/* Login Form Card */}
-            <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-100">
-              <h2 className="text-2xl font-semibold text-purple-700 mb-6 text-center">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-yellow-200">
+              <h2 className="text-2xl font-semibold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent mb-6 text-center">
                 Sign In
               </h2>
 
               {message && (
                 <div
-                  className={`mb-6 p-4 rounded-lg ${
+                  className={`mb-6 p-4 rounded-xl ${
                     message.includes('sent') || message.includes('success')
                       ? 'bg-green-100 text-green-800 border border-green-200'
                       : 'bg-red-100 text-red-800 border border-red-200'
@@ -150,7 +165,7 @@ export default function LoginPage() {
                     name="phone"
                     type="tel"
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition duration-200"
                     placeholder="0912345678"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -172,7 +187,7 @@ export default function LoginPage() {
                         name="password"
                         type={showPassword ? 'text' : 'password'}
                         required
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 pr-12"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition duration-200 pr-12"
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -180,7 +195,7 @@ export default function LoginPage() {
                       <button
                         type="button"
                         onClick={() => setShowPassword((prev) => !prev)}
-                        className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-purple-600"
+                        className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-yellow-600"
                       >
                         {showPassword ? (
                           <EyeOff className="h-5 w-5" />
@@ -190,7 +205,7 @@ export default function LoginPage() {
                       </button>
                     </div>
                   </div>
-                ) : (
+                ) : showOtpInput && (
                   <div>
                     <label
                       htmlFor="otp"
@@ -203,7 +218,7 @@ export default function LoginPage() {
                       name="otp"
                       type="text"
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition duration-200"
                       placeholder="Enter 6-digit OTP"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
@@ -211,52 +226,77 @@ export default function LoginPage() {
                   </div>
                 )}
 
+                {/* Login Mode Toggle */}
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={toggleLoginMode}
+                    className="text-sm text-yellow-600 hover:text-yellow-800 transition duration-200"
+                  >
+                    {isOtpLogin ? 'Use password instead' : 'Login with OTP'}
+                  </button>
+                </div>
+
+                {/* Send OTP Button */}
+                {isOtpLogin && !showOtpInput && (
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={isLoading}
+                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-semibold py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? 'Sending OTP...' : 'Send OTP'}
+                  </button>
+                )}
+
                 {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <span className="flex items-center justify-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 
-                          3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Signing in...
-                    </span>
-                  ) : (
-                    'Sign in to Your Account'
-                  )}
-                </button>
+                {(!isOtpLogin || (isOtpLogin && showOtpInput)) && (
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white font-semibold py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? (
+                      <span className="flex items-center justify-center">
+                        <svg
+                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 
+                            3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Signing in...
+                      </span>
+                    ) : (
+                      'Sign In to Celebrate 🎉'
+                    )}
+                  </button>
+                )}
               </form>
 
-              {/* Register + Forgot Password */}
+              {/* Register Link */}
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <p className="text-center text-gray-600 text-sm">
                   Don't have an account?{' '}
                   <Link
                     href="/auth/register"
-                    className="font-semibold text-purple-600 hover:text-purple-800 transition duration-200"
+                    className="font-semibold text-yellow-600 hover:text-yellow-800 transition duration-200"
                   >
-                    Create account
+                    Join the Celebration
                   </Link>
                 </p>
               </div>
@@ -270,132 +310,74 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Features Section (unchanged) */}
+            {/* Features Section */}
             <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-100">
-                <h3 className="text-xl font-semibold text-purple-700 mb-4">
-                  Why Join Feta Bingo?
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-yellow-200">
+                <h3 className="text-xl font-semibold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent mb-4">
+                  🏆 Victory Highlights 🏆
                 </h3>
                 <div className="space-y-4">
-                  {/* Multiplayer */}
                   <div className="flex items-start">
-                    <div className="bg-purple-100 p-2 rounded-lg mr-4">
-                      <svg
-                        className="w-6 h-6 text-purple-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 
-                          20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 
-                          20H2v-2a3 3 0 015.356-1.857M7 
-                          20v-2c0-.656.126-1.283.356-1.857m0 
-                          0a5.002 5.002 0 019.288 0M15 7a3 
-                          3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 
-                          11-4 0 2 2 0 014 0zM7 10a2 2 0 
-                          11-4 0 2 2 0 014 0z"
-                        />
-                      </svg>
+                    <div className="bg-gradient-to-r from-yellow-100 to-orange-100 p-3 rounded-xl mr-4">
+                      <span className="text-2xl">🏆</span>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-800">
-                        Multiplayer Experience
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Play with real players in exciting real-time bingo games
-                      </p>
+                      <h4 className="font-semibold text-gray-800">Tepi Gibi Gubaye Wins!</h4>
+                      <p className="text-sm text-gray-600">Historic victory in the competition</p>
                     </div>
                   </div>
 
-                  {/* Rewards */}
                   <div className="flex items-start">
-                    <div className="bg-blue-100 p-2 rounded-lg mr-4">
-                      <svg
-                        className="w-6 h-6 text-blue-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8c-1.657 0-3 .895-3 
-                          2s1.343 2 3 2 3 .895 3 2-1.343 
-                          2-3 2m0-8c1.11 0 2.08.402 
-                          2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 
-                          0-2.08-.402-2.599-1M21 12a9 9 0 
-                          11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
+                    <div className="bg-gradient-to-r from-yellow-100 to-orange-100 p-3 rounded-xl mr-4">
+                      <span className="text-2xl">🎉</span>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-800">
-                        Instant Rewards
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Win real prizes and enjoy instant withdrawals
-                      </p>
+                      <h4 className="font-semibold text-gray-800">Celebration Mode</h4>
+                      <p className="text-sm text-gray-600">Join the winning team celebration</p>
                     </div>
                   </div>
 
-                  {/* Security */}
                   <div className="flex items-start">
-                    <div className="bg-green-100 p-2 rounded-lg mr-4">
-                      <svg
-                        className="w-6 h-6 text-green-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 12l2 2 4-4m5.618-4.016A11.955 
-                          11.955 0 0112 2.944a11.955 
-                          11.955 0 01-8.618 3.04A12.02 
-                          12.02 0 003 9c0 5.591 3.824 
-                          10.29 9 11.622 5.176-1.332 
-                          9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                        />
-                      </svg>
+                    <div className="bg-gradient-to-r from-yellow-100 to-orange-100 p-3 rounded-xl mr-4">
+                      <span className="text-2xl">🥇</span>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-800">
-                        Secure Platform
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Your data and transactions are protected with encryption
-                      </p>
+                      <h4 className="font-semibold text-gray-800">Number One</h4>
+                      <p className="text-sm text-gray-600">Top position secured with excellence</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Quick Access */}
-              <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-100">
-                <h3 className="text-xl font-semibold text-purple-700 mb-4">
-                  Quick Access
+              <div className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-2xl shadow-xl p-6 border border-yellow-200">
+                <h3 className="text-xl font-semibold text-yellow-800 mb-4 text-center">
+                  🎊 Join the Celebration 🎊
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <p className="text-sm text-yellow-700 text-center mb-4">
+                  Be part of the winning team! Register now to celebrate with us.
+                </p>
+                <Link
+                  href="/auth/register"
+                  className="block w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white text-center font-semibold py-3 px-4 rounded-xl transition duration-200"
+                >
+                  Register Now →
+                </Link>
+              </div>
+
+              {/* Money Collection Game Link */}
+              <div className="bg-gradient-to-r from-green-100 to-emerald-100 rounded-2xl shadow-xl p-6 border border-green-200">
+                <div className="text-center">
+                  <div className="text-3xl mb-2">💰</div>
+                  <h3 className="font-bold text-green-800 mb-2">Money Collection Game</h3>
+                  <p className="text-sm text-green-700 mb-3">
+                    Support the winning team! Collect and track donations in real-time!
+                  </p>
                   <Link
-                    href="#login-form"
-                    className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-center py-3 rounded-lg transition duration-200"
+                    href="/collection"
+                    className="inline-block bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition duration-200"
                   >
-                    <div className="font-semibold">Play Now</div>
-                    <div className="text-xs">Join a Game</div>
-                  </Link>
-                  <Link
-                    href="/howtoplay"
-                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-center py-3 rounded-lg transition duration-200"
-                  >
-                    <div className="font-semibold">Learn</div>
-                    <div className="text-xs">How to Play</div>
+                    Launch Collection Game →
                   </Link>
                 </div>
               </div>
@@ -406,17 +388,11 @@ export default function LoginPage() {
           <div className="mt-12 text-center">
             <p className="text-xs text-gray-500">
               By signing in, you agree to our{' '}
-              <Link
-                href="/termsofservice"
-                className="text-purple-600 hover:underline"
-              >
+              <Link href="/termsofservice" className="text-yellow-600 hover:underline">
                 Terms of Service
               </Link>{' '}
               and{' '}
-              <Link
-                href="/privacypolicy"
-                className="text-purple-600 hover:underline"
-              >
+              <Link href="/privacypolicy" className="text-yellow-600 hover:underline">
                 Privacy Policy
               </Link>
             </p>

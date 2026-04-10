@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { webSocketService } from '@/app/utils/websocket';
 import { GamePage } from '@/components/collection/GamePage';
+import MobileHeader from '@/components/disk-user/MobileHeader';
 
 export default function CollectionGamePage() {
   const { user } = useAuth();
@@ -61,39 +62,55 @@ export default function CollectionGamePage() {
     }
   }, [user]);
 
+  // Loading state while connecting
+  if (!isConnected && !connectionError) {
+    return (
+      <>
+        <MobileHeader title="Dashboard" />
+        <div className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 pt-16">
+          <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+              <p className="text-white text-xl">Connecting to game server...</p>
+              <p className="text-purple-200 text-sm mt-2">Attempting to connect to {process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'}</p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Error state
   if (connectionError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center">
-        <div className="text-center bg-white/10 backdrop-blur-sm rounded-xl p-8 max-w-md">
-          <div className="text-5xl mb-4">🔌</div>
-          <h2 className="text-2xl font-bold text-white mb-2">Connection Failed</h2>
-          <p className="text-purple-200 mb-4">{connectionError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold hover:bg-purple-100 transition-colors"
-          >
-            Retry
-          </button>
+      <>
+        <MobileHeader title="Dashboard" />
+        <div className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 pt-16">
+          <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+            <div className="text-center bg-white/10 backdrop-blur-sm rounded-xl p-8 max-w-md">
+              <div className="text-5xl mb-4">🔌</div>
+              <h2 className="text-2xl font-bold text-white mb-2">Connection Failed</h2>
+              <p className="text-purple-200 mb-4">{connectionError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold hover:bg-purple-100 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
-  if (!isConnected) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-xl">Connecting to game server...</p>
-          <p className="text-purple-200 text-sm mt-2">Attempting to connect to {process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'}</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Connected state - show game with proper spacing
   return (
-    <div className="min-h-screen bg-gray-50">
-      <GamePage webSocketService={webSocketService} language={language} user={user} />
-    </div>
+    <>
+      <MobileHeader title="Dashboard" />
+      <div className="pt-16 min-h-screen bg-gray-50">
+        <GamePage webSocketService={webSocketService} language={language} user={user} />
+      </div>
+    </>
   );
 }
