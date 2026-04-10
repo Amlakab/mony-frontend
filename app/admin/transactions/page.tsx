@@ -34,16 +34,14 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
-  AccountBalanceWallet,
   Search,
   FilterList,
   ExpandMore,
   ExpandLess,
   Delete,
   Refresh,
-  AttachMoney,
   Person,
-  LocalOffer
+  AttachMoney
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 
@@ -59,15 +57,6 @@ interface Transaction {
   sequenceId: number;
 }
 
-interface TransactionStats {
-  totalTransactions: number;
-  totalCollected: number;
-  totalByBatch: Array<{ _id: string; batchName: string; total: number; count: number }>;
-  topDonors: Array<{ _id: string; totalAmount: number; donationCount: number }>;
-  recentTransactions: Transaction[];
-  dailyCollection: Array<{ date: string; total: number }>;
-}
-
 interface PaginationData {
   current: number;
   total: number;
@@ -80,7 +69,6 @@ export default function TransactionsPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [stats, setStats] = useState<TransactionStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -95,6 +83,14 @@ export default function TransactionsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState(false);
+  
+  // Calculate stats from transactions
+  const [calculatedStats, setCalculatedStats] = useState({
+    totalCollected: 0,
+    totalTransactions: 0,
+    uniqueDonors: 0,
+    uniqueBatches: 0
+  });
 
   const [filters, setFilters] = useState({
     batchId: '',
@@ -106,8 +102,14 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     fetchTransactions();
-    fetchStats();
   }, [filters]);
+
+  // Calculate stats whenever transactions change
+  useEffect(() => {
+    if (transactions.length > 0 || pagination.totalRecords > 0) {
+      calculateStats();
+    }
+  }, [transactions, pagination.totalRecords]);
 
   const fetchTransactions = async () => {
     try {
@@ -127,12 +129,25 @@ export default function TransactionsPage() {
     }
   };
 
-  const fetchStats = async () => {
+  const calculateStats = async () => {
     try {
-      const response = await api.get('/transactions/stats/overview');
-      setStats(response.data.data);
-    } catch (error: any) {
-      console.error('Failed to fetch stats:', error);
+      // Fetch all transactions for stats calculation (without pagination)
+      const response = await api.get('/transactions?limit=10000');
+      const allTransactions = response.data.data;
+      
+      const totalCollected = allTransactions.reduce((sum: number, t: Transaction) => sum + t.totalAmount, 0);
+      const totalTransactions = allTransactions.length;
+      const uniqueDonors = new Set(allTransactions.map((t: Transaction) => t.donorName)).size;
+      const uniqueBatches = new Set(allTransactions.map((t: Transaction) => t.batchId?._id || t.batchId)).size;
+      
+      setCalculatedStats({
+        totalCollected,
+        totalTransactions,
+        uniqueDonors,
+        uniqueBatches
+      });
+    } catch (error) {
+      console.error('Failed to calculate stats:', error);
     }
   };
 
@@ -144,7 +159,7 @@ export default function TransactionsPage() {
       await api.delete(`/transactions/${selectedTransaction._id}`);
       setSuccess('Transaction deleted successfully');
       fetchTransactions();
-      fetchStats();
+      calculateStats();
       setDeleteDialogOpen(false);
       setSelectedTransaction(null);
     } catch (error: any) {
@@ -168,7 +183,7 @@ export default function TransactionsPage() {
 
   const handleRefresh = () => {
     fetchTransactions();
-    fetchStats();
+    calculateStats();
     setSuccess('Data refreshed');
     setTimeout(() => setSuccess(''), 3000);
   };
@@ -220,14 +235,14 @@ export default function TransactionsPage() {
         </Box>
       </motion.div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Using calculated stats */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
           <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #2196F3, #21CBF3)', color: 'white', borderRadius: 2 }}>
             <CardContent sx={{ p: 2 }}>
               <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Total Collected</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {formatCurrency(stats?.totalCollected || 0)}
+                {formatCurrency(calculatedStats.totalCollected)}
               </Typography>
             </CardContent>
           </Card>
@@ -236,7 +251,7 @@ export default function TransactionsPage() {
             <CardContent sx={{ p: 2 }}>
               <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Total Transactions</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {stats?.totalTransactions || 0}
+                {calculatedStats.totalTransactions}
               </Typography>
             </CardContent>
           </Card>
@@ -245,7 +260,7 @@ export default function TransactionsPage() {
             <CardContent sx={{ p: 2 }}>
               <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Unique Donors</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {stats?.topDonors?.length || 0}
+                {calculatedStats.uniqueDonors}
               </Typography>
             </CardContent>
           </Card>
@@ -254,7 +269,7 @@ export default function TransactionsPage() {
             <CardContent sx={{ p: 2 }}>
               <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Active Batches</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {stats?.totalByBatch?.length || 0}
+                {calculatedStats.uniqueBatches}
               </Typography>
             </CardContent>
           </Card>
