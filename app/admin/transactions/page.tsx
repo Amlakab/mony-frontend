@@ -13,7 +13,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   Chip,
   Alert,
   Snackbar,
@@ -36,46 +35,37 @@ import {
 import { motion } from 'framer-motion';
 import {
   AccountBalanceWallet,
-  ArrowUpward,
-  ArrowDownward,
-  Casino,
-  EmojiEvents,
   Search,
   FilterList,
   ExpandMore,
   ExpandLess,
   Delete,
-  Refresh
+  Refresh,
+  AttachMoney,
+  Person,
+  LocalOffer
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 
 interface Transaction {
   _id: string;
-  userId: { _id: string; phone: string; name?: string };
-  type: 'deposit' | 'withdrawal' | 'game_purchase' | 'winning';
-  amount: number;
-  status: 'pending' | 'completed' | 'failed';
-  reference: string;
-  description: string;
-  transactionId?: string;
-  senderPhone?: string;
-  senderName?: string;
-  receiverPhone?: string;
-  receiverName?: string;
-  method?: string;
-  metadata?: any;
-  createdAt: string;
-  updatedAt: string;
+  batchId: { _id: string; name: string };
+  batchName: string;
+  totalAmount: number;
+  breakdown: Array<{ noteType: number; targetBox: string; image: string }>;
+  donorName: string;
+  donorPhone: string;
+  timestamp: string;
+  sequenceId: number;
 }
 
 interface TransactionStats {
   totalTransactions: number;
-  totalDeposits: number;
-  totalWithdrawals: number;
-  totalWinnings: number;
-  totalGamePurchases: number;
-  netBalance: number;
+  totalCollected: number;
+  totalByBatch: Array<{ _id: string; batchName: string; total: number; count: number }>;
+  topDonors: Array<{ _id: string; totalAmount: number; donationCount: number }>;
   recentTransactions: Transaction[];
+  dailyCollection: Array<{ date: string; total: number }>;
 }
 
 interface PaginationData {
@@ -88,7 +78,6 @@ interface PaginationData {
 export default function TransactionsPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<TransactionStats | null>(null);
@@ -108,11 +97,9 @@ export default function TransactionsPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [filters, setFilters] = useState({
-    type: '',
-    status: '',
+    batchId: '',
+    donorName: '',
     search: '',
-    startDate: '',
-    endDate: '',
     page: 1,
     limit: 10
   });
@@ -154,17 +141,7 @@ export default function TransactionsPage() {
     
     setDeleting(true);
     try {
-      // Check transaction type to use appropriate endpoint
-      let endpoint = '';
-      if (selectedTransaction.type === 'deposit') {
-        endpoint = `/transactions/deposit/${selectedTransaction._id}`;
-      } else if (selectedTransaction.type === 'withdrawal') {
-        endpoint = `/transactions/withdrawal/${selectedTransaction._id}`;
-      } else {
-        endpoint = `/transactions/${selectedTransaction._id}`;
-      }
-      
-      await api.delete(endpoint);
+      await api.delete(`/transactions/${selectedTransaction._id}`);
       setSuccess('Transaction deleted successfully');
       fetchTransactions();
       fetchStats();
@@ -208,7 +185,9 @@ export default function TransactionsPage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'ETB'
+      currency: 'ETB',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
     }).format(amount);
   };
 
@@ -222,49 +201,6 @@ export default function TransactionsPage() {
     });
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'deposit':
-        return <ArrowDownward sx={{ color: 'success.main', fontSize: 18 }} />;
-      case 'withdrawal':
-        return <ArrowUpward sx={{ color: 'error.main', fontSize: 18 }} />;
-      case 'game_purchase':
-        return <Casino sx={{ color: 'warning.main', fontSize: 18 }} />;
-      case 'winning':
-        return <EmojiEvents sx={{ color: 'success.main', fontSize: 18 }} />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'failed':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'deposit':
-        return 'Deposit';
-      case 'withdrawal':
-        return 'Withdrawal';
-      case 'game_purchase':
-        return 'Game Purchase';
-      case 'winning':
-        return 'Winning';
-      default:
-        return type;
-    }
-  };
-
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
       {/* Header */}
@@ -272,10 +208,10 @@ export default function TransactionsPage() {
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Box>
             <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 1 }}>
-              Transaction History
+              Collection Transactions
             </Typography>
             <Typography variant={isMobile ? 'body2' : 'body1'} color="text.secondary">
-              Track all your financial activities and game transactions
+              Track all money collection transactions from all batches
             </Typography>
           </Box>
           <IconButton onClick={handleRefresh} sx={{ bgcolor: 'white', '&:hover': { bgcolor: '#f5f5f5' } }}>
@@ -289,36 +225,36 @@ export default function TransactionsPage() {
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
           <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #2196F3, #21CBF3)', color: 'white', borderRadius: 2 }}>
             <CardContent sx={{ p: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Net Balance</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Total Collected</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {formatCurrency(stats?.netBalance || 0)}
+                {formatCurrency(stats?.totalCollected || 0)}
               </Typography>
             </CardContent>
           </Card>
 
           <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #4CAF50, #8BC34A)', color: 'white', borderRadius: 2 }}>
             <CardContent sx={{ p: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Total Deposits</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Total Transactions</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {formatCurrency(stats?.totalDeposits || 0)}
+                {stats?.totalTransactions || 0}
               </Typography>
             </CardContent>
           </Card>
 
-          <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #F44336, #FF5722)', color: 'white', borderRadius: 2 }}>
+          <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #FF9800, #FFC107)', color: 'white', borderRadius: 2 }}>
             <CardContent sx={{ p: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Total Withdrawals</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Unique Donors</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {formatCurrency(stats?.totalWithdrawals || 0)}
+                {stats?.topDonors?.length || 0}
               </Typography>
             </CardContent>
           </Card>
 
           <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #9C27B0, #E91E63)', color: 'white', borderRadius: 2 }}>
             <CardContent sx={{ p: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Total Transactions</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Active Batches</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {stats?.totalTransactions || 0}
+                {stats?.totalByBatch?.length || 0}
               </Typography>
             </CardContent>
           </Card>
@@ -340,31 +276,19 @@ export default function TransactionsPage() {
 
             <Collapse in={showFilters || !isMobile}>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                <FormControl sx={{ flex: '1 1 180px' }} size="small">
-                  <InputLabel>Type</InputLabel>
-                  <Select value={filters.type} label="Type" onChange={e => handleFilterChange('type', e.target.value)}>
-                    <MenuItem value="">All Types</MenuItem>
-                    <MenuItem value="deposit">Deposit</MenuItem>
-                    <MenuItem value="withdrawal">Withdrawal</MenuItem>
-                    <MenuItem value="game_purchase">Game Purchase</MenuItem>
-                    <MenuItem value="winning">Winning</MenuItem>
-                  </Select>
-                </FormControl>
-
-                <FormControl sx={{ flex: '1 1 180px' }} size="small">
-                  <InputLabel>Status</InputLabel>
-                  <Select value={filters.status} label="Status" onChange={e => handleFilterChange('status', e.target.value)}>
-                    <MenuItem value="">All Status</MenuItem>
-                    <MenuItem value="pending">Pending</MenuItem>
-                    <MenuItem value="completed">Completed</MenuItem>
-                    <MenuItem value="failed">Failed</MenuItem>
-                  </Select>
-                </FormControl>
+                <TextField
+                  sx={{ flex: '1 1 200px' }}
+                  size="small"
+                  label="Donor Name"
+                  value={filters.donorName}
+                  onChange={e => handleFilterChange('donorName', e.target.value)}
+                  InputProps={{ startAdornment: <Person sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} /> }}
+                />
 
                 <TextField
                   sx={{ flex: '1 1 200px' }}
                   size="small"
-                  label="Search Reference"
+                  label="Search (Batch/Donor)"
                   value={filters.search}
                   onChange={e => handleFilterChange('search', e.target.value)}
                   InputProps={{ startAdornment: <Search sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} /> }}
@@ -401,10 +325,12 @@ export default function TransactionsPage() {
                   <Card key={t._id} sx={{ borderRadius: 2 }}>
                     <CardContent sx={{ p: 2 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          {getTypeIcon(t.type)}
-                          <Typography variant="body2" sx={{ ml: 1, fontWeight: 'bold', textTransform: 'capitalize' }}>
-                            {getTypeLabel(t.type)}
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#2196F3' }}>
+                            {t.batchName}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            by {t.donorName}
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -419,29 +345,32 @@ export default function TransactionsPage() {
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">Amount:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: t.type === 'withdrawal' || t.type === 'game_purchase' ? 'error.main' : 'success.main' }}>
-                          {t.type === 'withdrawal' || t.type === 'game_purchase' ? `-${formatCurrency(t.amount)}` : `+${formatCurrency(t.amount)}`}
+                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                          +{formatCurrency(t.totalAmount)}
                         </Typography>
                       </Box>
 
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="body2">Status:</Typography>
-                        <Chip label={t.status} color={getStatusColor(t.status)} size="small" sx={{ height: 24 }} />
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                        {t.breakdown?.map((note, idx) => (
+                          <Chip key={idx} label={`${note.noteType} Br`} size="small" variant="outlined" />
+                        ))}
                       </Box>
 
                       {isExpanded && (
                         <>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2">Reference:</Typography>
-                            <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                              {t.reference}
-                            </Typography>
+                            <Typography variant="body2">Phone:</Typography>
+                            <Typography variant="body2">{t.donorPhone || 'N/A'}</Typography>
                           </Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <Typography variant="body2">Date:</Typography>
                             <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-                              {formatDate(t.createdAt)}
+                              {formatDate(t.timestamp)}
                             </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2">Sequence ID:</Typography>
+                            <Typography variant="body2">#{t.sequenceId}</Typography>
                           </Box>
                         </>
                       )}
@@ -459,11 +388,10 @@ export default function TransactionsPage() {
                 <Table>
                   <TableHead>
                     <TableRow sx={{ background: 'linear-gradient(145deg, #3498db, #2980b9)' }}>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Type</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Batch</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Donor</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Amount</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Reference</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>User</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Breakdown</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
                     </TableRow>
@@ -472,34 +400,33 @@ export default function TransactionsPage() {
                     {transactions.map(t => (
                       <TableRow key={t._id} hover>
                         <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            {getTypeIcon(t.type)}
-                            <Typography variant="body2" sx={{ ml: 1, textTransform: 'capitalize' }}>
-                              {getTypeLabel(t.type)}
+                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                            {t.batchName}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{t.donorName}</Typography>
+                          {t.donorPhone && (
+                            <Typography variant="caption" color="text.secondary">
+                              {t.donorPhone}
                             </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                            +{formatCurrency(t.totalAmount)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                            {t.breakdown?.map((note, idx) => (
+                              <Chip key={idx} label={`${note.noteType} Br`} size="small" variant="outlined" />
+                            ))}
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 'bold', color: t.type === 'withdrawal' || t.type === 'game_purchase' ? 'error.main' : 'success.main' }}>
-                            {t.type === 'withdrawal' || t.type === 'game_purchase' ? `-${formatCurrency(t.amount)}` : `+${formatCurrency(t.amount)}`}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip label={t.status} color={getStatusColor(t.status)} size="small" />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                            {t.reference}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                            {t.userId?.phone || 'N/A'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
                           <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-                            {formatDate(t.createdAt)}
+                            {formatDate(t.timestamp)}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -547,10 +474,10 @@ export default function TransactionsPage() {
           </Typography>
           {selectedTransaction && (
             <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-              <Typography variant="body2"><strong>Type:</strong> {getTypeLabel(selectedTransaction.type)}</Typography>
-              <Typography variant="body2"><strong>Amount:</strong> {formatCurrency(selectedTransaction.amount)}</Typography>
-              <Typography variant="body2"><strong>Reference:</strong> {selectedTransaction.reference}</Typography>
-              <Typography variant="body2"><strong>Status:</strong> {selectedTransaction.status}</Typography>
+              <Typography variant="body2"><strong>Batch:</strong> {selectedTransaction.batchName}</Typography>
+              <Typography variant="body2"><strong>Donor:</strong> {selectedTransaction.donorName}</Typography>
+              <Typography variant="body2"><strong>Amount:</strong> {formatCurrency(selectedTransaction.totalAmount)}</Typography>
+              <Typography variant="body2"><strong>Breakdown:</strong> {selectedTransaction.breakdown?.map(n => `${n.noteType} Br`).join(', ')}</Typography>
             </Box>
           )}
           <Typography variant="body2" color="error" sx={{ mt: 2 }}>
