@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { webSocketService } from '@/app/utils/websocket';
 import { GamePage } from '@/components/collection/GamePage';
-import MobileHeader from '@/components/disk-user/MobileHeader';
+import MobileHeader from '@/components/Layout/MobileHeader';
 
 export default function CollectionGamePage() {
   const { user } = useAuth();
