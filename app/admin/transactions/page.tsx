@@ -26,7 +26,12 @@ import {
   FormControl,
   InputLabel,
   IconButton,
-  Collapse
+  Collapse,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
@@ -38,7 +43,9 @@ import {
   Search,
   FilterList,
   ExpandMore,
-  ExpandLess
+  ExpandLess,
+  Delete,
+  Refresh
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 
@@ -50,6 +57,12 @@ interface Transaction {
   status: 'pending' | 'completed' | 'failed';
   reference: string;
   description: string;
+  transactionId?: string;
+  senderPhone?: string;
+  senderName?: string;
+  receiverPhone?: string;
+  receiverName?: string;
+  method?: string;
   metadata?: any;
   createdAt: string;
   updatedAt: string;
@@ -90,6 +103,9 @@ export default function TransactionsPage() {
   });
   const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [filters, setFilters] = useState({
     type: '',
@@ -133,6 +149,34 @@ export default function TransactionsPage() {
     }
   };
 
+  const handleDeleteTransaction = async () => {
+    if (!selectedTransaction) return;
+    
+    setDeleting(true);
+    try {
+      // Check transaction type to use appropriate endpoint
+      let endpoint = '';
+      if (selectedTransaction.type === 'deposit') {
+        endpoint = `/transactions/deposit/${selectedTransaction._id}`;
+      } else if (selectedTransaction.type === 'withdrawal') {
+        endpoint = `/transactions/withdrawal/${selectedTransaction._id}`;
+      } else {
+        endpoint = `/transactions/${selectedTransaction._id}`;
+      }
+      
+      await api.delete(endpoint);
+      setSuccess('Transaction deleted successfully');
+      fetchTransactions();
+      fetchStats();
+      setDeleteDialogOpen(false);
+      setSelectedTransaction(null);
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Failed to delete transaction');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleFilterChange = (field: string, value: string | number) => {
     setFilters(prev => ({
       ...prev,
@@ -145,14 +189,26 @@ export default function TransactionsPage() {
     handleFilterChange('page', value);
   };
 
+  const handleRefresh = () => {
+    fetchTransactions();
+    fetchStats();
+    setSuccess('Data refreshed');
+    setTimeout(() => setSuccess(''), 3000);
+  };
+
   const toggleExpandTransaction = (transactionId: string) => {
     setExpandedTransaction(expandedTransaction === transactionId ? null : transactionId);
+  };
+
+  const openDeleteDialog = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setDeleteDialogOpen(true);
   };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'ETB'
     }).format(amount);
   };
 
@@ -194,96 +250,75 @@ export default function TransactionsPage() {
     }
   };
 
-  const calculateTotals = () => {
-    if (!transactions.length) return { totalDeposits: 0, totalWithdrawals: 0, netBalance: 0 };
-
-    const totalDeposits = transactions
-      .filter(t => t.type === 'deposit' && t.status === 'completed')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const totalWithdrawals = transactions
-      .filter(t => t.type === 'withdrawal' && t.status === 'completed')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const netBalance = totalDeposits - totalWithdrawals;
-
-    return { totalDeposits, totalWithdrawals, netBalance };
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'deposit':
+        return 'Deposit';
+      case 'withdrawal':
+        return 'Withdrawal';
+      case 'game_purchase':
+        return 'Game Purchase';
+      case 'winning':
+        return 'Winning';
+      default:
+        return type;
+    }
   };
-
-  const { totalDeposits, totalWithdrawals, netBalance } = calculateTotals();
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <Box sx={{ mb: 3 }}>
-          <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 1 }}>
-            Transaction History
-          </Typography>
-          <Typography variant={isMobile ? 'body2' : 'body1'} color="text.secondary">
-            Track all your financial activities and game transactions
-          </Typography>
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 1 }}>
+              Transaction History
+            </Typography>
+            <Typography variant={isMobile ? 'body2' : 'body1'} color="text.secondary">
+              Track all your financial activities and game transactions
+            </Typography>
+          </Box>
+          <IconButton onClick={handleRefresh} sx={{ bgcolor: 'white', '&:hover': { bgcolor: '#f5f5f5' } }}>
+            <Refresh />
+          </IconButton>
         </Box>
       </motion.div>
 
       {/* Stats Cards */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-          {/* Net Balance Card */}
-          <Card sx={{ flex: '1 1 200px', background: 'linear-gradient(145deg, #2196F3, #21CBF3)', color: 'white', borderRadius: 2, boxShadow: '0 4px 8px rgba(33, 150, 243, 0.3)' }}>
+          <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #2196F3, #21CBF3)', color: 'white', borderRadius: 2 }}>
             <CardContent sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <AccountBalanceWallet sx={{ fontSize: 20, mr: 1 }} />
-                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                  Net Balance
-                </Typography>
-              </Box>
-              <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold', color: netBalance >= 0 ? 'inherit' : '#ff6b6b' }}>
-                {formatCurrency(netBalance)}
+              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Net Balance</Typography>
+              <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
+                {formatCurrency(stats?.netBalance || 0)}
               </Typography>
             </CardContent>
           </Card>
 
-          {/* Total Deposits Card */}
-          <Card sx={{ flex: '1 1 200px', background: 'linear-gradient(145deg, #4CAF50, #8BC34A)', color: 'white', borderRadius: 2, boxShadow: '0 4px 8px rgba(76, 175, 80, 0.3)' }}>
+          <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #4CAF50, #8BC34A)', color: 'white', borderRadius: 2 }}>
             <CardContent sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <ArrowDownward sx={{ fontSize: 20, mr: 1 }} />
-                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                  Total Deposits
-                </Typography>
-              </Box>
+              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Total Deposits</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {formatCurrency(totalDeposits)}
+                {formatCurrency(stats?.totalDeposits || 0)}
               </Typography>
             </CardContent>
           </Card>
 
-          {/* Total Withdrawals Card */}
-          <Card sx={{ flex: '1 1 200px', background: 'linear-gradient(145deg, #F44336, #FF5722)', color: 'white', borderRadius: 2, boxShadow: '0 4px 8px rgba(244, 67, 54, 0.3)' }}>
+          <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #F44336, #FF5722)', color: 'white', borderRadius: 2 }}>
             <CardContent sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <ArrowUpward sx={{ fontSize: 20, mr: 1 }} />
-                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                  Total Withdrawals
-                </Typography>
-              </Box>
+              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Total Withdrawals</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {formatCurrency(totalWithdrawals)}
+                {formatCurrency(stats?.totalWithdrawals || 0)}
               </Typography>
             </CardContent>
           </Card>
 
-          {/* Total Transactions Card */}
-          <Card sx={{ flex: '1 1 200px', background: 'linear-gradient(145deg, #9C27B0, #E91E63)', color: 'white', borderRadius: 2, boxShadow: '0 4px 8px rgba(156, 39, 176, 0.3)' }}>
+          <Card sx={{ flex: '1 1 180px', background: 'linear-gradient(145deg, #9C27B0, #E91E63)', color: 'white', borderRadius: 2 }}>
             <CardContent sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                  Total Transactions
-                </Typography>
-              </Box>
+              <Typography variant="body2" sx={{ fontWeight: 'medium', opacity: 0.9 }}>Total Transactions</Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold' }}>
-                {pagination.totalRecords}
+                {stats?.totalTransactions || 0}
               </Typography>
             </CardContent>
           </Card>
@@ -292,7 +327,7 @@ export default function TransactionsPage() {
 
       {/* Filter Section */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-        <Card sx={{ mb: 3, borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+        <Card sx={{ mb: 3, borderRadius: 2 }}>
           <CardContent sx={{ p: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}>
@@ -305,7 +340,7 @@ export default function TransactionsPage() {
 
             <Collapse in={showFilters || !isMobile}>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                <FormControl sx={{ flex: '1 1 200px' }} size="small">
+                <FormControl sx={{ flex: '1 1 180px' }} size="small">
                   <InputLabel>Type</InputLabel>
                   <Select value={filters.type} label="Type" onChange={e => handleFilterChange('type', e.target.value)}>
                     <MenuItem value="">All Types</MenuItem>
@@ -316,7 +351,7 @@ export default function TransactionsPage() {
                   </Select>
                 </FormControl>
 
-                <FormControl sx={{ flex: '1 1 200px' }} size="small">
+                <FormControl sx={{ flex: '1 1 180px' }} size="small">
                   <InputLabel>Status</InputLabel>
                   <Select value={filters.status} label="Status" onChange={e => handleFilterChange('status', e.target.value)}>
                     <MenuItem value="">All Status</MenuItem>
@@ -329,16 +364,15 @@ export default function TransactionsPage() {
                 <TextField
                   sx={{ flex: '1 1 200px' }}
                   size="small"
-                  fullWidth
                   label="Search Reference"
                   value={filters.search}
                   onChange={e => handleFilterChange('search', e.target.value)}
                   InputProps={{ startAdornment: <Search sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} /> }}
                 />
 
-                <FormControl sx={{ flex: '1 1 200px' }} size="small">
-                  <InputLabel>Items per page</InputLabel>
-                  <Select value={filters.limit} label="Items per page" onChange={e => handleFilterChange('limit', e.target.value)}>
+                <FormControl sx={{ flex: '1 1 120px' }} size="small">
+                  <InputLabel>Per page</InputLabel>
+                  <Select value={filters.limit} label="Per page" onChange={e => handleFilterChange('limit', e.target.value)}>
                     <MenuItem value={5}>5</MenuItem>
                     <MenuItem value={10}>10</MenuItem>
                     <MenuItem value={25}>25</MenuItem>
@@ -351,10 +385,10 @@ export default function TransactionsPage() {
         </Card>
       </motion.div>
 
-      {/* Transactions */}
+      {/* Transactions Table */}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress size={isMobile ? 40 : 60} sx={{ color: '#3498db' }} />
+          <CircularProgress size={isMobile ? 40 : 60} />
         </Box>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.3 }}>
@@ -364,57 +398,48 @@ export default function TransactionsPage() {
               {transactions.map(t => {
                 const isExpanded = expandedTransaction === t._id;
                 return (
-                  <Card key={t._id} sx={{ borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+                  <Card key={t._id} sx={{ borderRadius: 2 }}>
                     <CardContent sx={{ p: 2 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           {getTypeIcon(t.type)}
                           <Typography variant="body2" sx={{ ml: 1, fontWeight: 'bold', textTransform: 'capitalize' }}>
-                            {t.type.replace('_', ' ')}
+                            {getTypeLabel(t.type)}
                           </Typography>
                         </Box>
-                        <IconButton size="small" onClick={() => toggleExpandTransaction(t._id)} sx={{ p: 0 }}>
-                          {isExpanded ? <ExpandLess /> : <ExpandMore />}
-                        </IconButton>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton size="small" onClick={() => openDeleteDialog(t)} sx={{ color: 'error.main' }}>
+                            <Delete fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => toggleExpandTransaction(t._id)}>
+                            {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                          </IconButton>
+                        </Box>
                       </Box>
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">Amount:</Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontWeight: 'bold',
-                            color: t.type === 'withdrawal' || t.type === 'game_purchase' ? 'error.main' : 'success.main'
-                          }}
-                        >
+                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: t.type === 'withdrawal' || t.type === 'game_purchase' ? 'error.main' : 'success.main' }}>
                           {t.type === 'withdrawal' || t.type === 'game_purchase' ? `-${formatCurrency(t.amount)}` : `+${formatCurrency(t.amount)}`}
                         </Typography>
                       </Box>
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">Status:</Typography>
-                        <Chip label={t.status} color={getStatusColor(t.status) as any} size="small" sx={{ height: 24, fontSize: '0.7rem' }} />
+                        <Chip label={t.status} color={getStatusColor(t.status)} size="small" sx={{ height: 24 }} />
                       </Box>
 
                       {isExpanded && (
                         <>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <Typography variant="body2">Reference:</Typography>
-                            <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
                               {t.reference}
                             </Typography>
                           </Box>
-
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2">Description:</Typography>
-                            <Typography variant="body2" sx={{ textAlign: 'right', fontSize: '0.8rem' }}>
-                              {t.description}
-                            </Typography>
-                          </Box>
-
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <Typography variant="body2">Date:</Typography>
-                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                            <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
                               {formatDate(t.createdAt)}
                             </Typography>
                           </Box>
@@ -427,76 +452,74 @@ export default function TransactionsPage() {
             </Box>
           )}
 
-          {/* Desktop/Table View */}
+          {/* Desktop Table View */}
           {!isMobile && (
-            <Card sx={{ borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
-              <CardContent sx={{ p: 0 }}>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow sx={{ background: 'linear-gradient(145deg, #3498db, #2980b9)' }}>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Type</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Amount</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Status</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Reference</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Description</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Date</TableCell>
+            <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ background: 'linear-gradient(145deg, #3498db, #2980b9)' }}>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Type</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Amount</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Reference</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>User</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {transactions.map(t => (
+                      <TableRow key={t._id} hover>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            {getTypeIcon(t.type)}
+                            <Typography variant="body2" sx={{ ml: 1, textTransform: 'capitalize' }}>
+                              {getTypeLabel(t.type)}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold', color: t.type === 'withdrawal' || t.type === 'game_purchase' ? 'error.main' : 'success.main' }}>
+                            {t.type === 'withdrawal' || t.type === 'game_purchase' ? `-${formatCurrency(t.amount)}` : `+${formatCurrency(t.amount)}`}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip label={t.status} color={getStatusColor(t.status)} size="small" />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                            {t.reference}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                            {t.userId?.phone || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                            {formatDate(t.createdAt)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <IconButton size="small" onClick={() => openDeleteDialog(t)} sx={{ color: 'error.main' }}>
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </TableCell>
                       </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {transactions.map(t => (
-                        <TableRow key={t._id} hover>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              {getTypeIcon(t.type)}
-                              <Typography variant="body2" sx={{ ml: 1, textTransform: 'capitalize' }}>
-                                {t.type.replace('_', ' ')}
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontWeight: 'bold',
-                                color: t.type === 'withdrawal' || t.type === 'game_purchase' ? 'error.main' : 'success.main'
-                              }}
-                            >
-                              {t.type === 'withdrawal' || t.type === 'game_purchase' ? `-${formatCurrency(t.amount)}` : `+${formatCurrency(t.amount)}`}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip label={t.status} color={getStatusColor(t.status) as any} size="small" />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                              {t.reference}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                              {t.description}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                              {formatDate(t.createdAt)}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-                {transactions.length === 0 && !loading && (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="h6" color="text.secondary">
-                      No transactions found. {filters.type || filters.status ? 'Try changing your filters.' : 'No transactions recorded yet.'}
-                    </Typography>
-                  </Box>
-                )}
-              </CardContent>
+              {transactions.length === 0 && !loading && (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="h6" color="text.secondary">
+                    No transactions found.
+                  </Typography>
+                </Box>
+              )}
             </Card>
           )}
 
@@ -515,17 +538,42 @@ export default function TransactionsPage() {
         </motion.div>
       )}
 
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Transaction</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this transaction?
+          </Typography>
+          {selectedTransaction && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+              <Typography variant="body2"><strong>Type:</strong> {getTypeLabel(selectedTransaction.type)}</Typography>
+              <Typography variant="body2"><strong>Amount:</strong> {formatCurrency(selectedTransaction.amount)}</Typography>
+              <Typography variant="body2"><strong>Reference:</strong> {selectedTransaction.reference}</Typography>
+              <Typography variant="body2"><strong>Status:</strong> {selectedTransaction.status}</Typography>
+            </Box>
+          )}
+          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteTransaction} color="error" variant="contained" disabled={deleting}>
+            {deleting ? <CircularProgress size={20} /> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Notifications */}
       <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError('')}>
-        <Alert severity="error" onClose={() => setError('')} sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
-          {error}
-        </Alert>
+        <Alert severity="error" onClose={() => setError('')}>{error}</Alert>
       </Snackbar>
 
       <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess('')}>
-        <Alert severity="success" onClose={() => setSuccess('')} sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
-          {success}
-        </Alert>
+        <Alert severity="success" onClose={() => setSuccess('')}>{success}</Alert>
       </Snackbar>
     </Box>
   );
