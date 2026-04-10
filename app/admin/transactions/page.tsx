@@ -509,7 +509,7 @@ export default function TransactionsPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Notifications */}
+      {/* Notifications  */}
       <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError('')}>
         <Alert severity="error" onClose={() => setError('')}>{error}</Alert>
       </Snackbar>
